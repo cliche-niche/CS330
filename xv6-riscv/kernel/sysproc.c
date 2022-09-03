@@ -96,8 +96,31 @@ sys_uptime(void)
   return xticks;
 }
 
+// Functionality inaugurated by the UG'24@IIT-K
+
 uint64
 sys_getppid(void)
 {
-  return myproc()->parent->pid;
+  // since child is accessing some other process' (parent process') PID, it's lock must be acquired first
+  acquire(&(myproc()->parent->lock));
+  int ppid = myproc()->parent->pid;
+  release(&(myproc()->parent->lock));
+  return ppid;
+}
+
+uint64
+sys_yield(void)
+{
+  yield();
+  return 0;
+}
+
+uint64
+sys_getpa(void)
+{
+  uint64 p;
+  
+  if (argaddr(0, &p) < 0)
+    return -1;
+  return walkaddr(myproc()->pagetable, p) + (p & (PGSIZE - 1));
 }

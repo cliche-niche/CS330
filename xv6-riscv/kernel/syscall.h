@@ -20,4 +20,8 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+
+// Changes brought into existence by UG-IITK
 #define SYS_getppid 22
+#define SYS_yield 23
+#define SYS_getpa 24

@@ -104,7 +104,11 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_wait(void);
 extern uint64 sys_write(void);
 extern uint64 sys_uptime(void);
+
+// Syscalls defined by UG students at IIT-Kanpur
 extern uint64 sys_getppid(void);
+extern uint64 sys_yield(void);
+extern uint64 sys_getpa(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -128,7 +132,11 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+
+// Changes made by UG-IITK
 [SYS_getppid] sys_getppid,
+[SYS_yield] sys_yield,
+[SYS_getpa] sys_getpa,
 };
 
 void

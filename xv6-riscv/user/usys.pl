@@ -36,4 +36,8 @@ entry("getpid");
 entry("sbrk");
 entry("sleep");
 entry("uptime");
+
+# Changes introduced by UG-IITK
 entry("getppid");
+entry("yield");
+entry("getpa");
