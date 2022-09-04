@@ -27,7 +27,8 @@ int uptime(void);
 // System call changes instituted by the UG@IIT-K
 int getppid(void);
 int yield(void);
-int getpa(int*);
+int getpa(void*);
+int forkf(void*);
 
 // ulib.c
 int stat(const char*, struct stat*);

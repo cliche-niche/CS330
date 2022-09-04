@@ -102,9 +102,15 @@ uint64
 sys_getppid(void)
 {
   // since child is accessing some other process' (parent process') PID, it's lock must be acquired first
-  acquire(&(myproc()->parent->lock));
-  int ppid = myproc()->parent->pid;
-  release(&(myproc()->parent->lock));
+  struct proc *p = myproc()->parent;
+  if(p == 0) {
+    return -1;
+  }
+
+  acquire(&(p->lock));
+  int ppid = p->pid;
+  release(&(p->lock));
+
   return ppid;
 }
 
@@ -123,4 +129,12 @@ sys_getpa(void)
   if (argaddr(0, &p) < 0)
     return -1;
   return walkaddr(myproc()->pagetable, p) + (p & (PGSIZE - 1));
+}
+
+uint64
+sys_forkf(void)
+{
+  printf("Working?");
+  // call to proc.c
+  return 0;
 }
