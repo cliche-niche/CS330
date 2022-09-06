@@ -138,3 +138,14 @@ sys_forkf(void)
   // call to proc.c
   return 0;
 }
+
+uint64
+sys_waitpid(void)
+{
+  uint64 p,q;
+  if(argaddr(0, &p) < 0)
+    return -1;
+  if(argaddr(1, &q) < 0)
+    return -1;
+  return waitpid(p,q);
+}
