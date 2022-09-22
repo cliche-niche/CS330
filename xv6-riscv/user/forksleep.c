@@ -4,7 +4,7 @@
 
 int main(int argc, char* argv[]){
     if (argc != 3) {
-        fprintf(2, "Please enter both n and m\n");
+        fprintf(2, "Please enter both m and n\n");
         exit(1);
     }
 

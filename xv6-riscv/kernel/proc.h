@@ -105,4 +105,10 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+
+  // ##################### Augmented as part of the Institutional assignments to test our understanding of the rich subject of operating systems #####################
+  uint64 creat_time;           // Time (in ticks) process p was created
+  uint64 start_time;           // Time (in ticks) process p was first scheduled to run 
+  uint64 end_time;             // Time (in ticks) process p was turned zombie in OS 
 };

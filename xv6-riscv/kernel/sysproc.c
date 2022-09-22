@@ -153,3 +153,10 @@ sys_waitpid(void)
     return -1;
   return waitpid(p,q);
 }
+
+uint64
+sys_ps(void)
+{
+  ps();
+  return 0;
+}

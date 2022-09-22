@@ -62,6 +62,7 @@ void test_forkf() {
 
 void test_func_pointer(void (*f)()){
     f();
+    printf("%p", f);
 }
 
 void test_waitpid(){
@@ -94,14 +95,20 @@ void test_waitpid(){
     }
 }
 
+void test_ps(){
+    ps();
+}
+
 // ! Remember to delete this file both from the directory as well as from makefile
 int main(){
+    sleep(5);
+    test_ps();
     // test_forkf();
     // test_func_pointer((void*) f);
     // test_forkf((void*) &test_getppid);
     // test_getppid();
     // test_yield();
     // test_getpa();
-    test_waitpid();
+    // test_waitpid();
     exit(0);
 }
