@@ -105,6 +105,9 @@ int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
+// syscalls touched by UG-IITK 2K24 in proc.c
+int 			forkf(void (*f)());
+
 // swtch.S
 void            swtch(struct context*, struct context*);
 

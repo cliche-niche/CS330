@@ -658,3 +658,14 @@ procdump(void)
 
 // Innovations innovated by UG-IITK'24
 
+int
+forkf(void (*f)()){
+  int b = fork();
+
+  if (b == 0) {
+    printf("Entered b = 0 branch.\n");
+    (*f)();
+  }
+
+  return b;
+}

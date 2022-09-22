@@ -2,14 +2,18 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-// int forkf(void* g(void)){
-//     int f = fork();
+int g (int x)
+{
+   return x*x;
+}
 
-//     if(f==0){
-//         g();
-//     }
-//     return f;
-// }
+int f (void)
+{
+   int x = 10;
+
+   fprintf(1, "Hello world! %d\n", g(x));
+   return 0;
+}
 
 // all testing functions will be of the form test_*
 void test_getppid() {
@@ -39,13 +43,31 @@ void test_getpa() {
     printf("test_yield actual physical address : %x\n", getpa(&test_yield));
 }
 
-void test_forkf(void (*f)) {
-    forkf(f);
+void test_forkf() {
+    printf("f address = %x\n", f);
+    int x = forkf(f);
+    if (x < 0) {
+     fprintf(2, "Error: cannot fork\nAborting...\n");
+     exit(0);
+    }
+    else if (x > 0) {
+     sleep(5);
+     fprintf(1, "%d: Parent.\n", getpid());
+     wait(0);
+    }
+    else {
+     fprintf(1, "%d: Child.\n", getpid());
+    }
+}
+
+void test_func_pointer(void (*f)()){
+    f();
 }
 
 // ! Remember to delete this file both from the directory as well as from makefile
 int main(){
-    test_forkf((void*) &test_getppid);
+    // test_forkf();
+    test_func_pointer((void*) f);
     // test_getppid();
     // test_yield();
     // test_getpa();

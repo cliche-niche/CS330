@@ -125,16 +125,20 @@ uint64
 sys_getpa(void)
 {
   uint64 p;
-  
   if (argaddr(0, &p) < 0)
     return -1;
+  
   return walkaddr(myproc()->pagetable, p) + (p & (PGSIZE - 1));
 }
 
 uint64
 sys_forkf(void)
 {
-  printf("Working?");
-  // call to proc.c
+  uint64 p;
+  if (argaddr(0, &p) < 0)
+    return -1;
+  
+  printf("p = %x\n", p);
+  forkf((void*) p);
   return 0;
 }
