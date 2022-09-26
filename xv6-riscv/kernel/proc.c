@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "procstat.h"
 
 struct cpu cpus[NCPU];
 
@@ -821,4 +822,101 @@ ps(void)
 
     release(&p->lock);
   }
+}
+
+int pinfo(int pid, uint64 addr) {
+  static char *states[] = {
+  [UNUSED]    "unused",
+  [SLEEPING]  "sleep ",
+  [RUNNABLE]  "runble",
+  [RUNNING]   "run   ",
+  [ZOMBIE]    "zombie"
+  };
+  struct proc *mp = myproc();
+  struct proc *p;
+  struct procstat pstat;
+
+  if (pid == -1) {
+    p = mp;
+    acquire(&p->lock);
+  } else {
+    for(p = proc; p < &proc[NPROC]; p++){
+      acquire(&p->lock);
+
+      if (p->pid == pid) {
+        goto Found;
+      }
+
+      release(&p->lock);
+    }
+    return -1;
+  }
+
+  Found:
+
+  pstat.pid = p->pid;
+  pstat.ctime = p->creat_time;
+  pstat.stime = p->start_time;
+  pstat.size = p->sz;
+  
+  acquire(&wait_lock);
+  if (p->parent) {
+    acquire(&p->parent->lock);
+    pstat.ppid = p->parent->pid;
+    release(&p->parent->lock);
+  } else {
+    pstat.ppid = -1;
+  }
+  release(&wait_lock);
+  
+  {
+    if(p->state >= 0 && p->state < NELEM(states) && states[p->state]) {
+      int l = 0;
+      while (states[p->state][l]) {
+        pstat.state[l] = states[p->state][l];
+        l++;
+      }
+      pstat.state[l] = '\0';
+    }
+    else {
+      pstat.state[0] = '?';
+      pstat.state[1] = '?';
+      pstat.state[2] = '?';
+      pstat.state[3] = '\0';
+    }
+  }
+
+  {
+    int l = 0;
+    while (p->name[l]) {
+      pstat.command[l] = p->name[l];
+      l++;
+    }
+      pstat.command[l] = '\0';
+  }
+
+  {
+    if (p->state == ZOMBIE) {
+      pstat.etime = p->end_time - p->start_time;
+    } else {
+      acquire(&tickslock);
+      pstat.etime = ticks - p->start_time;
+      release(&tickslock);
+    }
+  }
+
+  if(!holding(&mp->lock)) {
+    acquire(&mp->lock);
+  }
+  if(addr != 0 && copyout(mp->pagetable, addr, (char *) (&pstat),
+                          sizeof(pstat)) < 0) {
+    release(&p->lock);
+    return -1;
+  }
+
+  release(&p->lock);
+  if(holding(&mp->lock)) {
+    release(&mp->lock);
+  }
+  return 0;  
 }

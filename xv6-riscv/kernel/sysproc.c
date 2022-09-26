@@ -160,3 +160,21 @@ sys_ps(void)
   ps();
   return 0;
 }
+
+#include "procstat.h"
+
+uint64
+sys_pinfo(void)
+{
+  int pid;
+  uint64 pstat;
+
+  if (argint(0, &pid) < 0) {
+    return -1;
+  }
+  if (argaddr(1, &pstat) < 0) {
+    return -1;
+  }
+  
+  return pinfo(pid, pstat);
+}

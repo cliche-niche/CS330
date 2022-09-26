@@ -112,6 +112,7 @@ extern uint64 sys_getpa(void);
 extern uint64 sys_forkf(void);
 extern uint64 sys_waitpid(void);
 extern uint64 sys_ps(void);
+extern uint64 sys_pinfo(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -143,6 +144,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_forkf] sys_forkf,
 [SYS_waitpid] sys_waitpid,
 [SYS_ps] sys_ps,
+[SYS_pinfo] sys_pinfo,
 };
 
 void

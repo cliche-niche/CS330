@@ -1,5 +1,6 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
+#include "kernel/procstat.h"
 #include "user/user.h"
 
 int g (int x)
@@ -99,10 +100,38 @@ void test_ps(){
     ps();
 }
 
+void test_pinfo() {
+    struct procstat pstat;
+
+    int x = fork();
+    if (x < 0) {
+        fprintf(2, "Error: cannot fork\nAborting...\n");
+        exit(0);
+    }
+    else if (x > 0) {
+        sleep(1);
+        fprintf(1, "%d: Parent.\n", getpid());
+        if (pinfo(-1, &pstat) < 0) fprintf(1, "Cannot get pinfo\n");
+        else fprintf(1, "pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%p\n",
+            pstat.pid, pstat.ppid, pstat.state, pstat.command, pstat.ctime, pstat.stime, pstat.etime, pstat.size);
+        if (pinfo(x, &pstat) < 0) fprintf(1, "Cannot get pinfo\n");
+        else fprintf(1, "pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%p\n\n",
+            pstat.pid, pstat.ppid, pstat.state, pstat.command, pstat.ctime, pstat.stime, pstat.etime, pstat.size);
+        fprintf(1, "Return value of waitpid=%d\n", waitpid(x, 0));
+    }
+    else {
+        fprintf(1, "%d: Child.\n", getpid());
+        if (pinfo(-1, &pstat) < 0) fprintf(1, "Cannot get pinfo\n");
+        else fprintf(1, "pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%p\n\n",
+            pstat.pid, pstat.ppid, pstat.state, pstat.command, pstat.ctime, pstat.stime, pstat.etime, pstat.size);
+    }
+}
+
 // ! Remember to delete this file both from the directory as well as from makefile
 int main(){
-    sleep(5);
-    test_ps();
+    // sleep(5);
+    test_pinfo();
+    // test_ps();
     // test_forkf();
     // test_func_pointer((void*) f);
     // test_forkf((void*) &test_getppid);
@@ -111,4 +140,5 @@ int main(){
     // test_getpa();
     // test_waitpid();
     exit(0);
+    // return 0;
 }

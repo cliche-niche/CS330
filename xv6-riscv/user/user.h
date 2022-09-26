@@ -31,6 +31,8 @@ int getpa(void*);
 int forkf(void*);
 int waitpid(int, int*);
 void ps(void);
+struct procstat;
+int pinfo(int, struct procstat*);
 
 // ulib.c
 int stat(const char*, struct stat*);

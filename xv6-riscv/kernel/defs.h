@@ -106,11 +106,12 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 
 
-// syscalls touched by UG-IITK 2K24 in proc.c
-//Functionality inaugurated by the UG'24@IIT-K
+// ########################################## syscalls touched by UG-IITK 2K24 in proc.c ##########################################
 int 			forkf(int (*f)());
-int             waitpid(uint64,uint64);
+int             waitpid(uint64, uint64);
 void 			ps(void);
+int 			pinfo(int, uint64);
+// ########################################## Custom syscalls end ##########################################
 
 // swtch.S
 void            swtch(struct context*, struct context*);
