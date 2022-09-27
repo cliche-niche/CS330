@@ -101,17 +101,7 @@ sys_uptime(void)
 uint64
 sys_getppid(void)
 {
-  // since child is accessing some other process' (parent process') PID, it's lock must be acquired first
-  struct proc *p = myproc()->parent;
-  if(p == 0) {
-    return -1;
-  }
-
-  acquire(&(p->lock));
-  int ppid = p->pid;
-  release(&(p->lock));
-
-  return ppid;
+  return getppid();
 }
 
 uint64
@@ -138,20 +128,19 @@ sys_forkf(void)
   if (argaddr(0, &p) < 0)
     return -1;
   
-  printf("p = %x\n", p);
-  forkf((void*) p);
-  return 0;
+  return forkf(p);
 }
 
 uint64
 sys_waitpid(void)
 {
-  uint64 p,q;
-  if(argaddr(0, &p) < 0)
+  int p;
+  uint64 q;
+  if(argint(0, &p) < 0)
     return -1;
   if(argaddr(1, &q) < 0)
     return -1;
-  return waitpid(p,q);
+  return waitpid(p, q);
 }
 
 uint64
@@ -160,8 +149,6 @@ sys_ps(void)
   ps();
   return 0;
 }
-
-#include "procstat.h"
 
 uint64
 sys_pinfo(void)

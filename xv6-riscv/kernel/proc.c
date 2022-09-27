@@ -678,7 +678,25 @@ procdump(void)
 // **************************** Innovations innovated by UG-IITK'24 **************************** /
 
 int
-forkf(int (*f)()){
+getppid(void){
+  // since child is accessing some other process' (parent process') PID, it's lock must be acquired first
+  acquire(&wait_lock);
+  struct proc *p = myproc()->parent;
+  if(p == 0) {
+    release(&wait_lock);
+    return -1;
+  }
+
+  acquire(&(p->lock));
+  int ppid = p->pid;
+  release(&(p->lock));
+  release(&wait_lock);
+
+  return ppid;
+}
+
+int
+forkf(uint64 f){
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
@@ -701,7 +719,7 @@ forkf(int (*f)()){
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
-  np->trapframe->epc = (uint64) f;
+  np->trapframe->epc = f;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -727,7 +745,7 @@ forkf(int (*f)()){
 }
 
 int
-waitpid(uint64 x, uint64 addr)
+waitpid(int x, uint64 addr)
 { // Similar in implementation to wait().
   struct proc *np;
   int havekids, pid;

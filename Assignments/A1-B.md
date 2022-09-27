@@ -55,7 +55,7 @@ Consider the following example program that uses `forkf()`. <br>
     3: Parent.
     ```
 
-    Explain the outputs of the program when the return value of `f` is 0, 1, and -1. How does the program behave if the return value of `f` is changed to some integer value other than 0, 1, and -1? [18 points]
+    Explain the outputs of the program when the return value of f is 0, 1, and -1. How does the program behave if the return value of f is changed to some integer value other than 0, 1, and -1? How does the program behave if the return type of f is changed to void and the return statement in f is commented? [18 points]
 
 5. [waitpid](): This system call takes two arguments: an integer and a pointer. The integer argument can be a pid or -1. The system call waits for the process with the passed pid to complete provided the pid is of a child of the calling process. If the first argument is -1, the system call behaves similarly to the `wait` system call. The normal return value of this system call is the pid of the process that it has waited on. The system call returns -1 in the case of any error. It will be helpful to see how the wait system call is implemented. Make sure to acquire and release the appropriate locks as is done in the implementation of the wait system call and as mentioned in the comments alongside the definition of the proc structure
 in [kernel/proc.h](../xv6-riscv/kernel/). [11 points]

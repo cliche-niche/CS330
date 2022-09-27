@@ -107,8 +107,9 @@ void            procdump(void);
 
 
 // ########################################## syscalls touched by UG-IITK 2K24 in proc.c ##########################################
-int 			forkf(int (*f)());
-int             waitpid(uint64, uint64);
+int 			getppid(void);
+int 			forkf(uint64);
+int             waitpid(int, uint64);
 void 			ps(void);
 int 			pinfo(int, uint64);
 // ########################################## Custom syscalls end ##########################################

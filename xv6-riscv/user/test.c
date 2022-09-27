@@ -3,6 +3,7 @@
 #include "kernel/procstat.h"
 #include "user/user.h"
 
+// all testing functions will be of the form test_*
 int g (int x)
 {
    return x*x;
@@ -16,7 +17,6 @@ int f (void)
    return 0;
 }
 
-// all testing functions will be of the form test_*
 void test_getppid() {
     int b = fork();
     if(b == 0) {
@@ -45,25 +45,19 @@ void test_getpa() {
 }
 
 void test_forkf() {
-    printf("f address = %x\n", f);
     int x = forkf(f);
     if (x < 0) {
-     fprintf(2, "Error: cannot fork\nAborting...\n");
-     exit(0);
+        fprintf(2, "Error: cannot fork\nAborting...\n");
+        exit(0);
     }
     else if (x > 0) {
-     sleep(5);
-     fprintf(1, "%d: Parent.\n", getpid());
-     wait(0);
+        sleep(5);
+        fprintf(1, "%d: Parent.\n", getpid());
+        wait(0);
     }
     else {
-     fprintf(1, "%d: Child.\n", getpid());
+        fprintf(1, "%d: Child.\n", getpid());
     }
-}
-
-void test_func_pointer(void (*f)()){
-    f();
-    printf("%p", f);
 }
 
 void test_waitpid(){
@@ -129,16 +123,13 @@ void test_pinfo() {
 
 // ! Remember to delete this file both from the directory as well as from makefile
 int main(){
-    // sleep(5);
     test_pinfo();
-    // test_ps();
-    // test_forkf();
-    // test_func_pointer((void*) f);
-    // test_forkf((void*) &test_getppid);
-    // test_getppid();
-    // test_yield();
-    // test_getpa();
-    // test_waitpid();
+    test_ps();
+    test_forkf();
+    test_getppid();
+    test_yield();
+    test_getpa();
+    test_waitpid();
+
     exit(0);
-    // return 0;
 }
