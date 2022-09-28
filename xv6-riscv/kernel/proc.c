@@ -534,9 +534,6 @@ forkret(void)
     // be run from main().
     first = 0;
     fsinit(ROOTDEV);
-
-    // Adulteration by UG-nation
-
   }
 
   usertrapret();
@@ -803,10 +800,12 @@ ps(void)
   };
   struct proc *p;
   char *state;
-
-  printf("\n");
   uint64 etime;
   int ppid;
+
+  acquire(&wait_lock);
+
+  printf("\n");
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
 
@@ -827,7 +826,7 @@ ps(void)
       etime = ticks - p->start_time;
       release(&tickslock);
     }
-    if (p->pid == 1) {
+    if (p->parent == 0) {
       ppid = -1;
     } else {
       acquire(&p->parent->lock);
@@ -840,9 +839,15 @@ ps(void)
 
     release(&p->lock);
   }
+
+  release(&wait_lock);
 }
 
 int pinfo(int pid, uint64 addr) {
+  if (addr == 0) {
+    return -1;
+  }
+
   static char *states[] = {
   [UNUSED]    "unused",
   [SLEEPING]  "sleep ",
@@ -862,7 +867,7 @@ int pinfo(int pid, uint64 addr) {
       acquire(&p->lock);
 
       if (p->pid == pid) {
-        goto Found;
+        goto found;
       }
 
       release(&p->lock);
@@ -870,8 +875,7 @@ int pinfo(int pid, uint64 addr) {
     return -1;
   }
 
-  Found:
-
+found:
   pstat.pid = p->pid;
   pstat.ctime = p->creat_time;
   pstat.stime = p->start_time;
@@ -929,6 +933,9 @@ int pinfo(int pid, uint64 addr) {
   if(addr != 0 && copyout(mp->pagetable, addr, (char *) (&pstat),
                           sizeof(pstat)) < 0) {
     release(&p->lock);
+    if (holding(&mp->lock)) {
+      release(&mp->lock);
+    }
     return -1;
   }
 

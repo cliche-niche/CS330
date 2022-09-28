@@ -5,7 +5,7 @@
 int main(int argc, char* argv[]){
 
 	if (argc != 3) {
-		fprintf(2, "error: expected 2 arguments but received %d.\n", argc-1);
+		fprintf(2, "error: expected 2 arguments but received %d.\n", argc - 1);
 		exit(1);
 	}
 
@@ -58,6 +58,7 @@ int main(int argc, char* argv[]){
 			printf("%d: %d\n", getpid(), x);
 			if (write(pipefd[1], &x, sizeof(int)) < 0) {	// Write the value of x for child
 				fprintf(2, "error while writing x.\n");
+				close(pipefd[1]);
 				exit(1);
 			}
 			close(pipefd[1]);
@@ -70,6 +71,7 @@ int main(int argc, char* argv[]){
 			
 			if (read(pipefd[0], &x, sizeof(int)) < 0){		// Read the value of x from parent
 				fprintf(2, "error while reading x.\n");
+				close(pipefd[0]);
 				exit(1);
 			}
 			close(pipefd[0]);

@@ -41,7 +41,7 @@ Part A of the first assignment had four user programs to be implemented-
     $
     ```
 
-4. [primefactors.c](../xv6-riscv/user/primefactors): This program takes an integer `n` in the range [2, 100] as command line argument and prints the prime factors of `n` with multiplicity. You may assume that a global
+4. [primefactors.c](../xv6-riscv/user/primefactors.c): This program takes an integer `n` in the range [2, 100] as command line argument and prints the prime factors of `n` with multiplicity. You may assume that a global
 array of all primes in the range [2, 100] is given to you as follows.<br>
     ```C
     int primes[]={2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97};

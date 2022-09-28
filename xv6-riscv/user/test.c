@@ -62,29 +62,29 @@ void test_forkf() {
 
 void test_waitpid(){
     int b = fork();
-    if(b==0){
+    if(b == 0){
         printf("This is child\n");
     }else{
-        int k = waitpid(b,0);
-        if(k==-1) printf("Failed\n");
-        else printf("Succesful wait_call. Returned %d\n",k);
-        b=fork();
-        if(b==0){
+        int k = waitpid(b, 0);
+        if(k == -1) printf("Failed\n");
+        else printf("Succesful wait_call. Returned %d\n", k);
+        b = fork();
+        if(b == 0){
             printf("This is child\n");
         }else{
-            int k = waitpid(-1,0);
-            if(k==-1) printf("Failed\n");
-            else printf("Succesful wait_call. Returned %d\n",k);
-            b=fork();
-            if(b==0){
+            int k = waitpid(-1, 0);
+            if(k == -1) printf("Failed\n");
+            else printf("Succesful wait_call. Returned %d\n", k);
+            b = fork();
+            if(b == 0){
                 printf("This is child\n");
             }else{
-                int k = waitpid(b+1,0);
-                if(k==-1){
-                    waitpid(-1,0);
+                int k = waitpid(b+1, 0);
+                if(k == -1){
+                    waitpid(-1, 0);
                     printf("Failed\n");
                 }
-                else printf("Succesful wait_call. Returned %d\n",k);
+                else printf("Succesful wait_call. Returned %d\n", k);
             }
         }
     }
@@ -123,13 +123,13 @@ void test_pinfo() {
 
 // ! Remember to delete this file both from the directory as well as from makefile
 int main(){
-    test_pinfo();
-    test_ps();
-    test_forkf();
     test_getppid();
     test_yield();
     test_getpa();
+    test_forkf();
     test_waitpid();
+    test_ps();
+    test_pinfo();
 
     exit(0);
 }
