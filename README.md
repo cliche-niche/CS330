@@ -5,7 +5,7 @@ The assignments required us to implement programs in the xv6 OS evironment, and 
 
 + [Assignment#1-Part A](./Assignments/A1-A.md): Implement user programs which use syscalls like `getpid()`, `fork()`, `pipe()`, etc.
 + [Assignment#1-Part B](./Assignments/A1-B.md): Implement syscalls like `getppid()`, `waitpid()`, custom implementation of `fork()`, process info, etc.
-+ [ASsignment#1-Report](./Reports/A1.pdf): Contains a brief description of the `syscall`s implemented in Part B of Assignment 1.
++ [Assignment#1-Report](./Reports/A1.pdf): Contains a brief description of the `syscall`s implemented in Part B of Assignment 1.
 
 #### Acknowledgements
 Most of the [xv6-riscv](./xv6-riscv/) directory was provided to us, we do not take credit for it. We have only made some minor changes/added new programs to it as part of our assignments, and they have been listed in markdown files included in the repository.
