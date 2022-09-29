@@ -744,6 +744,11 @@ forkf(uint64 f){
 int
 waitpid(int x, uint64 addr)
 { // Similar in implementation to wait().
+
+  if (x < -1 || x == 0) {
+    return -1;
+  }
+
   struct proc *np;
   int havekids, pid;
   struct proc *p = myproc();
@@ -754,9 +759,14 @@ waitpid(int x, uint64 addr)
     // Scan through table looking for exited children.
     havekids = 0;
     for(np = proc; np < &proc[NPROC]; np++){
-      if (np->parent == p && (np->pid == x || x == -1)) {
+      if (np->parent == p ){
         // make sure the child isn't still in exit() or swtch().
         acquire(&np->lock);
+
+        if (x != -1 && np->pid != x) {
+          release(&np->lock);
+          continue;
+        }
 
         havekids = 1;
         if(np->state == ZOMBIE){
@@ -799,11 +809,9 @@ ps(void)
   [ZOMBIE]    "zombie"
   };
   struct proc *p;
-  char *state;
-  uint64 etime;
-  int ppid;
-
-  acquire(&wait_lock);
+  char *state, *name;
+  uint64 sz; // Store all the values in local variables so that p->lock may be released
+  int pid, ppid, creat_time, start_time, etime;
 
   printf("\n");
   for(p = proc; p < &proc[NPROC]; p++){
@@ -826,6 +834,10 @@ ps(void)
       etime = ticks - p->start_time;
       release(&tickslock);
     }
+    pid = p->pid; name = p->name; creat_time = p->creat_time; start_time = p->start_time; sz = p->sz;
+    release(&p->lock);
+
+    acquire(&wait_lock);
     if (p->parent == 0) {
       ppid = -1;
     } else {
@@ -833,17 +845,16 @@ ps(void)
       ppid = p->parent->pid;
       release(&p->parent->lock);   
     }
+    release(&wait_lock);
+
     printf("pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%x", 
-            p->pid, ppid, state, p->name, p->creat_time, p->start_time, etime, p->sz);
+            pid, ppid, state, name, creat_time, start_time, etime, sz);
     printf("\n");
-
-    release(&p->lock);
   }
-
-  release(&wait_lock);
 }
 
-int pinfo(int pid, uint64 addr) {
+int 
+pinfo(int pid, uint64 addr) {
   if (addr == 0) {
     return -1;
   }
@@ -880,7 +891,39 @@ found:
   pstat.ctime = p->creat_time;
   pstat.stime = p->start_time;
   pstat.size = p->sz;
-  
+
+  int l = 0;
+  if(p->state >= 0 && p->state < NELEM(states) && states[p->state]) {
+    while (states[p->state][l]) {
+      pstat.state[l] = states[p->state][l];
+      l++;
+    }
+    pstat.state[l] = '\0';
+  }
+  else {
+    pstat.state[0] = '?';
+    pstat.state[1] = '?';
+    pstat.state[2] = '?';
+    pstat.state[3] = '\0';
+  }
+
+  l = 0;
+  while (p->name[l]) {
+    pstat.command[l] = p->name[l];
+    l++;
+  }
+  pstat.command[l] = '\0';
+
+  if (p->state == ZOMBIE) {
+    pstat.etime = p->end_time - p->start_time;
+  } else {
+    acquire(&tickslock);
+    pstat.etime = ticks - p->start_time;
+    release(&tickslock);
+  }
+
+  release(&p->lock);
+
   acquire(&wait_lock);
   if (p->parent) {
     acquire(&p->parent->lock);
@@ -890,58 +933,10 @@ found:
     pstat.ppid = -1;
   }
   release(&wait_lock);
-  
-  {
-    if(p->state >= 0 && p->state < NELEM(states) && states[p->state]) {
-      int l = 0;
-      while (states[p->state][l]) {
-        pstat.state[l] = states[p->state][l];
-        l++;
-      }
-      pstat.state[l] = '\0';
-    }
-    else {
-      pstat.state[0] = '?';
-      pstat.state[1] = '?';
-      pstat.state[2] = '?';
-      pstat.state[3] = '\0';
-    }
-  }
 
-  {
-    int l = 0;
-    while (p->name[l]) {
-      pstat.command[l] = p->name[l];
-      l++;
-    }
-      pstat.command[l] = '\0';
-  }
-
-  {
-    if (p->state == ZOMBIE) {
-      pstat.etime = p->end_time - p->start_time;
-    } else {
-      acquire(&tickslock);
-      pstat.etime = ticks - p->start_time;
-      release(&tickslock);
-    }
-  }
-
-  if(!holding(&mp->lock)) {
-    acquire(&mp->lock);
-  }
   if(addr != 0 && copyout(mp->pagetable, addr, (char *) (&pstat),
                           sizeof(pstat)) < 0) {
-    release(&p->lock);
-    if (holding(&mp->lock)) {
-      release(&mp->lock);
-    }
     return -1;
-  }
-
-  release(&p->lock);
-  if(holding(&mp->lock)) {
-    release(&mp->lock);
   }
   return 0;  
 }
