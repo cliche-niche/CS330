@@ -716,7 +716,7 @@ forkf(uint64 f){
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
-  np->trapframe->epc = f;
+  np->trapframe->epc = f; // change program counter to execute function f after returning to user mode
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -745,7 +745,7 @@ int
 waitpid(int x, uint64 addr)
 { // Similar in implementation to wait().
 
-  if (x < -1 || x == 0) {
+  if (x < -1 || x == 0) { // invalid input
     return -1;
   }
 
@@ -763,7 +763,7 @@ waitpid(int x, uint64 addr)
         // make sure the child isn't still in exit() or swtch().
         acquire(&np->lock);
 
-        if (x != -1 && np->pid != x) {
+        if (x != -1 && np->pid != x) { // only proceed if the process is a child with the given pid or if x = -1
           release(&np->lock);
           continue;
         }
@@ -894,7 +894,7 @@ found:
 
   int l = 0;
   if(p->state >= 0 && p->state < NELEM(states) && states[p->state]) {
-    while (states[p->state][l]) {
+    while (states[p->state][l]) { // copy the string
       pstat.state[l] = states[p->state][l];
       l++;
     }
@@ -908,7 +908,7 @@ found:
   }
 
   l = 0;
-  while (p->name[l]) {
+  while (p->name[l]) { // copy the string
     pstat.command[l] = p->name[l];
     l++;
   }

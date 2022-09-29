@@ -3,6 +3,6 @@
 #include "user/user.h"
 
 int main(void){
-	printf("The uptime is: %l\n", uptime());
+	printf("The uptime is: %d\n", uptime());
 	exit(0);
 }
