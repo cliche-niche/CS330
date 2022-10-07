@@ -118,6 +118,7 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 UPROGS=\
 	$U/_cat\
 	$U/_echo\
+	$U/_find\
 	$U/_forksleep\
 	$U/_forktest\
 	$U/_grep\
@@ -126,20 +127,46 @@ UPROGS=\
 	$U/_ln\
 	$U/_ls\
 	$U/_mkdir\
+	$U/_pingpong\
 	$U/_pipeline\
+	$U/_primes\
 	$U/_primefactors\
 	$U/_rm\
 	$U/_sh\
+	$U/_sleep\
 	$U/_stressfs\
-	$U/_usertests\
+	$U/_submitjobs\
+	$U/_test\
+	$U/_testForkf\
+	$U/_testForkfSleep\
+	$U/_testGetPA\
+	$U/_testGetPwaitP\
+	$U/_testloop1\
+	$U/_testloop2\
+	$U/_testloop3\
+	$U/_testloop4\
+	$U/_testlooplong\
+	$U/_testpinfo\
+	$U/_testpspinfo\
+	$U/_testyield\
 	$U/_uptime\
+	$U/_usertests\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
-	$U/_test\
 
-fs.img: mkfs/mkfs README $(UPROGS)
-	mkfs/mkfs fs.img README $(UPROGS)
+JOBFILES=\
+	$U/batch.txt\
+	$U/batch1.txt\
+	$U/batch2.txt\
+	$U/batch3.txt\
+	$U/batch4.txt\
+	$U/batch5.txt\
+	$U/batch6.txt\
+	$U/batch7.txt\
+
+fs.img: mkfs/mkfs README $(UPROGS) $(JOBFILES)
+	mkfs/mkfs fs.img README $(UPROGS) $(JOBFILES)
 
 -include kernel/*.d user/*.d
 
