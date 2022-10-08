@@ -9,7 +9,7 @@ Contains differences in files in this repository from those in official solution
 + [sysproc.c](./xv6-riscv/kernel/): Different implementation of `getppid` (without acquiring locks); other than that, more or less the same (minor difference in `waitpid` and `pinfo`)
 + [proc.h](./xv6-riscv/kernel/proc.h), [procstat.h](./xv6-riscv/kernel/procstat.h), [syscall.c](./xv6-riscv/kernel/syscall.c), [syscall.h](./xv6-riscv/kernel/syscall.h): No difference
 
-[User files](./xv6-riscv/user)
+[User files](./xv6-riscv/user)<br>
 `atoi` used instead of making custom functions in all files.
 + [forksleep.c](./xv6-riscv/user/forksleep.c): More or less the same
 + [pipeline.c](./xv6-riscv/user/pipeline.c): More or less the same, except that `write` takes place before forking
