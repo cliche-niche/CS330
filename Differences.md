@@ -2,6 +2,13 @@ Contains differences in files in this repository from those in official solution
 
 ### Assignment 1
 
+[Kernel files](./xv6-riscv/kernel)
++ [defs.h](./xv6-riscv/kernel/defs.h): `getppid` not present in official solution because it is implemented completely in [sysproc.c](./xv6-riscv/kernel/sysproc.c)
++ [param.h](./xv6-riscv/kernel/param.h): `FSSIZE` changed from 1000 to 2000
++ [proc.c](./xv6-riscv/kernel/proc.c): A lot of differences. Significant differences have been completely replaced by the official solution, with both the official solution and our solution tagged with comments
++ [sysproc.c](./xv6-riscv/kernel/): Different implementation of `getppid` (without acquiring locks); other than that, more or less the same (minor difference in `waitpid` and `pinfo`)
++ [proc.h](./xv6-riscv/kernel/proc.h), [procstat.h](./xv6-riscv/kernel/procstat.h), [syscall.c](./xv6-riscv/kernel/syscall.c), [syscall.h](./xv6-riscv/kernel/syscall.h): No difference
+
 [User files](./xv6-riscv/user)
 `atoi` used instead of making custom functions in all files.
 + [forksleep.c](./xv6-riscv/user/forksleep.c): More or less the same

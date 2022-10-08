@@ -139,12 +139,12 @@ static uint64 (*syscalls[])(void) = {
 
 // Changes made by UG-IITK
 [SYS_getppid] sys_getppid,
-[SYS_yield] sys_yield,
-[SYS_getpa] sys_getpa,
-[SYS_forkf] sys_forkf,
+[SYS_yield]   sys_yield,
+[SYS_getpa]   sys_getpa,
+[SYS_forkf]   sys_forkf,
 [SYS_waitpid] sys_waitpid,
-[SYS_ps] sys_ps,
-[SYS_pinfo] sys_pinfo,
+[SYS_ps]      sys_ps,
+[SYS_pinfo]   sys_pinfo,
 };
 
 void

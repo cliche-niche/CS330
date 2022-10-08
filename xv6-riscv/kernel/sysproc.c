@@ -101,6 +101,13 @@ sys_uptime(void)
 uint64
 sys_getppid(void)
 {
+  // ##### OFFICIAL SOLUTION #####
+  if (myproc()->parent) return myproc()->parent->pid;
+  else {
+     printf("No parent found.\n");
+     return 0;
+  }
+  // ##### OFFICIAL SOLUTION #####
   return getppid();
 }
 
@@ -140,6 +147,12 @@ sys_waitpid(void)
     return -1;
   if(argaddr(1, &q) < 0)
     return -1;
+
+  // ##### OFFICIAL SOLUTION #####
+  if (p == -1) return wait(q);
+  if ((p == 0) || (p < -1)) return -1;
+  // ##### OFFICIAL SOLUTION #####
+
   return waitpid(p, q);
 }
 
@@ -163,5 +176,9 @@ sys_pinfo(void)
     return -1;
   }
   
+
+  // ##### OFFICIAL SOLUTION #####
+  if ((pid == 0 || (pid < -1) || (pid == 0))) return -1;
+  // ##### OFFICIAL SOLUTION #####
   return pinfo(pid, pstat);
 }
