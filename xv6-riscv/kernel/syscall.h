@@ -29,3 +29,5 @@
 #define SYS_waitpid 26
 #define SYS_ps 		27
 #define SYS_pinfo 	28
+#define SYS_schedpolicy 29
+#define SYS_forkp 	30

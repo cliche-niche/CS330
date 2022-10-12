@@ -45,3 +45,5 @@ entry("forkf");
 entry("waitpid");
 entry("ps");
 entry("pinfo");
+entry("schedpolicy");
+entry("forkp");

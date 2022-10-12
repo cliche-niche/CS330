@@ -24,7 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
-// System call changes instituted by the UG@IIT-K
+// #################### System call changes instituted by the UG@IIT-K ####################
 int getppid(void);
 int yield(void);
 int getpa(void*);
@@ -33,6 +33,9 @@ int waitpid(int, int*);
 void ps(void);
 struct procstat;
 int pinfo(int, struct procstat*);
+int schedpolicy(int);
+int forkp(int);
+// ########################################
 
 // ulib.c
 int stat(const char*, struct stat*);

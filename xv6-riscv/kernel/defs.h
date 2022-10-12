@@ -112,6 +112,8 @@ int 			forkf(uint64);
 int             waitpid(int, uint64);
 void 			ps(void);
 int 			pinfo(int, uint64);
+int 			schedpolicy(int);
+int 			forkp(int);
 // ########################################## Custom syscalls end ##########################################
 
 // swtch.S

@@ -96,7 +96,7 @@ sys_uptime(void)
   return xticks;
 }
 
-// Functionality inaugurated by the UG'24@IIT-K
+// ###################### Functionality inaugurated by the UG'24@IIT-K ######################
 
 uint64
 sys_getppid(void)
@@ -181,4 +181,22 @@ sys_pinfo(void)
   if ((pid == 0 || (pid < -1) || (pid == 0))) return -1;
   // ##### OFFICIAL SOLUTION #####
   return pinfo(pid, pstat);
+}
+
+uint64
+sys_schedpolicy(void)
+{
+  int policy;
+  if (argint(0, &policy) < 0) 
+    return -1;
+  return schedpolicy(policy);
+}
+
+uint64
+sys_forkp(void)
+{
+  int priority;
+  if (argint(0, &priority) < 0)
+    return -1;
+  return forkp(priority);
 }

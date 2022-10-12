@@ -43,5 +43,6 @@ main(int argc, char *argv[])
      if (forkp(atoi((const char*)prio)) == 0) exec(args[0], args);
   }
 
+  ps();
   exit(0);
 }

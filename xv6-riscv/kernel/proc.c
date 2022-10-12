@@ -16,6 +16,12 @@ struct proc *initproc;
 int nextpid = 1;
 struct spinlock pid_lock;
 
+// ################ Added by UG@IITK'24 ################
+int scheduling_policy = SCHED_PREEMPT_RR; // Default schedpolicy
+int schedpolicy(int);
+// ################################
+
+
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
@@ -147,8 +153,8 @@ found:
   p->creat_time = ticks;
   release(&tickslock);
   // ##### OFFICIAL SOLUTION #####
-  p->stime = -1;
-  p->endtime = -1;
+  p->start_time = -1;
+  p->end_time = -1;
   // ##### OFFICIAL SOLUTION #####
 
   return p;
@@ -304,6 +310,7 @@ fork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+  np->from_forkp = 0;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -530,7 +537,7 @@ forkret(void)
 
   // ##### OFFICIAL SOLUTION #####
   release(&myproc()->lock);
-  release(&mypkslock);
+  acquire(&tickslock);
   myproc()->start_time = ticks;
   release(&tickslock);
   // ##### OFFICIAL SOLUTION #####
@@ -750,17 +757,18 @@ forkf(uint64 f){
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  np->from_forkp = 0;
   release(&np->lock);
 
   return pid;
 }
 
 int
-waitpid(int x, uint64 addr)
+waitpid(int pid, uint64 addr)
 { // Similar in implementation to wait().
 
   // ##### OUR SOLUTION #####
-  // if (x < -1 || x == 0) { // invalid input
+  // if (pid < -1 || pid == 0) { // invalid input
   //   return -1;
   // }
   // ##### OUR SOLUTION #####
@@ -899,8 +907,9 @@ ps(void)
     xticks = ticks;
     release(&tickslock);
 
-    printf("pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%p", pid, ppid, state, p->name, p->ctime, p->stime, (p->endtime == -1) ? xticks-p->stime : p->endtime-p->stime, p->sz);
+    printf("pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%p", pid, ppid, state, p->name, p->creat_time, p->start_time, (p->end_time == -1) ? xticks-p->start_time : p->end_time-p->start_time, p->sz);
     printf("\n");
+    printf("\n##########TESTING##########\n Priority = %d \n##################\n", p->priority);
   }
 }
 
@@ -962,9 +971,9 @@ pinfo(int pid, uint64 addr)
 
      safestrcpy(&pstat.state[0], state, strlen(state)+1);
      safestrcpy(&pstat.command[0], &p->name[0], sizeof(p->name));
-     pstat.ctime = p->ctime;
-     pstat.stime = p->stime;
-     pstat.etime = (p->endtime == -1) ? xticks-p->stime : p->endtime-p->stime;
+     pstat.ctime = p->creat_time;
+     pstat.stime = p->start_time;
+     pstat.etime = (p->end_time == -1) ? xticks-p->start_time : p->end_time-p->start_time;
      pstat.size = p->sz;
      if(copyout(myproc()->pagetable, addr, (char *)&pstat, sizeof(pstat)) < 0) return -1;
      return 0;
@@ -1118,3 +1127,61 @@ pinfo(int pid, uint64 addr)
 //   return 0;  
 // }
 // ##### OUR SOLUTION #####
+
+int schedpolicy(int policy){
+  int previous_policy = scheduling_policy;
+  scheduling_policy = policy;
+  return previous_policy;
+}
+
+
+int
+forkp(int priority)
+{
+  int i, pid;
+  struct proc *np;
+  struct proc *p = myproc();
+
+  // Allocate process.
+  if((np = allocproc()) == 0){
+    return -1;
+  }
+
+  // Copy user memory from parent to child.
+  if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
+  np->sz = p->sz;
+
+  // copy saved user registers.
+  *(np->trapframe) = *(p->trapframe);
+
+  // Cause fork to return 0 in the child.
+  np->trapframe->a0 = 0;
+  np->from_forkp = 1;
+  np->priority = priority;
+
+  // increment reference counts on open file descriptors.
+  for(i = 0; i < NOFILE; i++)
+    if(p->ofile[i])
+      np->ofile[i] = filedup(p->ofile[i]);
+  np->cwd = idup(p->cwd);
+
+  safestrcpy(np->name, p->name, sizeof(p->name));
+
+  pid = np->pid;
+
+  release(&np->lock);
+
+  acquire(&wait_lock);
+  np->parent = p;
+  release(&wait_lock);
+
+  acquire(&np->lock);
+  np->state = RUNNABLE;
+  release(&np->lock);
+
+  return pid;
+}
