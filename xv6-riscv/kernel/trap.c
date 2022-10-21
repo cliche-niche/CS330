@@ -77,7 +77,7 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2 && scheduling_policy != SCHED_NPREEMPT_FCFS && scheduling_policy != SCHED_NPREEMPT_FCFS)
     yield();
 
   usertrapret();
@@ -150,7 +150,7 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING && scheduling_policy != SCHED_NPREEMPT_FCFS && scheduling_policy != SCHED_NPREEMPT_SJF)
     yield();
 
   // the yield() may have caused some traps to occur,

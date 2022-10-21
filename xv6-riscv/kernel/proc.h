@@ -113,4 +113,5 @@ struct proc {
   int end_time;             // Time (in ticks) process p was turned zombie in OS
   int priority;             // Priority of the process
   int from_forkp;           // Process created from forkp()
+  int estimate;             // Estimate of the next CPU burst length
 };

@@ -17,8 +17,10 @@ int nextpid = 1;
 struct spinlock pid_lock;
 
 // ################ Added by UG@IITK'24 ################
-int scheduling_policy = SCHED_PREEMPT_RR; // Default schedpolicy
-int schedpolicy(int);
+// stores the current scheduling policy
+// default sched policy will be set to 
+// RR in main by calling schedpolicy(RR)
+int scheduling_policy;
 // ################################
 
 
@@ -156,6 +158,8 @@ found:
   p->start_time = -1;
   p->end_time = -1;
   // ##### OFFICIAL SOLUTION #####
+  p->estimate = 0;
+  p->priority = 0;
 
   return p;
 }
@@ -463,27 +467,42 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
-  
+
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+    
+    switch (scheduling_policy) 
+    {
+      case SCHED_NPREEMPT_FCFS: break;
 
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+      case SCHED_NPREEMPT_SJF: break;
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-      }
-      release(&p->lock);
+      case SCHED_PREEMPT_RR: 
+        for(p = proc; p < &proc[NPROC]; p++) {
+          if (scheduling_policy != SCHED_PREEMPT_RR) break; // Check if scheduling policy changed from RR
+          
+          acquire(&p->lock);
+          if(p->state == RUNNABLE) {
+            // Switch to chosen process.  It is the process's job
+            // to release its lock and then reacquire it
+            // before jumping back to us.
+            p->state = RUNNING;
+            c->proc = p;
+            swtch(&c->context, &p->context);
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
+          }
+          release(&p->lock);
+        }
+        break;
+
+      case SCHED_PREEMPT_UNIX: break;
+
+      default: break;
     }
   }
 }
@@ -909,7 +928,6 @@ ps(void)
 
     printf("pid=%d, ppid=%d, state=%s, cmd=%s, ctime=%d, stime=%d, etime=%d, size=%p", pid, ppid, state, p->name, p->creat_time, p->start_time, (p->end_time == -1) ? xticks-p->start_time : p->end_time-p->start_time, p->sz);
     printf("\n");
-    printf("\n##########TESTING##########\n Priority = %d \n##################\n", p->priority);
   }
 }
 

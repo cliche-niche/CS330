@@ -41,5 +41,6 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
 
+  scheduling_policy = SCHED_PREEMPT_RR;  // Setting default scheduling policy
   scheduler();        
 }
