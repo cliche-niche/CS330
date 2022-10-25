@@ -111,11 +111,20 @@ struct proc {
   int creat_time;           // Time (in ticks) process p was created
   int start_time;           // Time (in ticks) process p was first scheduled to run 
   int end_time;             // Time (in ticks) process p was turned zombie in OS
-  int priority;             // Priority of the process
+
   int from_forkp;           // Process created from forkp()
+
+  // ##################### UNIX Scheduling Variables #####################
+  int base_priority;    
+  int dynamic_priority;  
+  int cpu_usage;
+
+  // ##################### SFJ Scheduling Variables ##################### 
   int estimate;             // Estimate of the next CPU burst length
   int cpu_burst_start_tick; // Stores the tick when the CPU burst starts
   int cpu_burst_end_tick;   // Stores the tick when the CPU burst ends
+
+  // ##################### Batch Statistic Variables #####################
   int runnable_start;       // Stores the tick when the process became runnable
   int runnable_end;         // Stores the tick when the process started running
 };

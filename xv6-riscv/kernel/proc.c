@@ -32,6 +32,20 @@ int batch_waiting_time = 0;
 int batch_completion_time_avg = 0;
 int batch_completion_time_min = -1;
 int batch_completion_time_max = 0;
+
+int cpu_bursts_count = 0;
+int cpu_bursts_avg = 0;
+int cpu_bursts_max = 0;
+int cpu_bursts_min = -1;
+
+int cpu_est_bursts_count = 0;
+int cpu_est_bursts_avg = 0;
+int cpu_est_bursts_max = 0;
+int cpu_est_bursts_min = -1;
+
+int cpu_bursts_error_count = 0;
+int cpu_bursts_error_avg = 0;
+
 void print_statistics(void);
 // ################################
 
@@ -171,7 +185,7 @@ found:
   p->end_time = -1;
   // ##### OFFICIAL SOLUTION #####
   p->estimate = 0;
-  p->priority = 0;
+  p->base_priority = 0;
 
   return p;
 }
@@ -408,9 +422,43 @@ exit(int status)
   // UG-nation leaves
 
   if (p->from_forkp) {
+
+    uint xticks;
+    if (!holding(&tickslock)) {
+       acquire(&tickslock);
+       xticks = ticks;
+       release(&tickslock);
+    }
+    else xticks = ticks;
+    p->cpu_burst_end_tick = xticks;
+
+    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
+
+    if (cpu_burst_length) {
+
+      if(p->estimate){
+        cpu_bursts_error_count++;
+        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length;
+        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
+      }
+
+      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new 
+      cpu_bursts_count++;
+      cpu_bursts_avg += cpu_burst_length;
+      if(cpu_burst_length > cpu_bursts_max) cpu_bursts_max = cpu_burst_length;
+      if(cpu_bursts_min == -1 || cpu_burst_length < cpu_bursts_min) cpu_bursts_min = cpu_burst_length;
+    }
+
+    if(p->estimate){
+      cpu_est_bursts_count++;
+      cpu_est_bursts_avg += p->estimate;
+      if(p->estimate > cpu_est_bursts_max) cpu_est_bursts_max = p->estimate;
+      if(cpu_est_bursts_min == -1 || cpu_est_bursts_min > p->estimate) cpu_est_bursts_min = p->estimate;
+    }
+
+
     batch_size_running--;
-
-
 
     batch_turnaround_time += (p->end_time) - (p->creat_time);
     int completion_time = (p->end_time) - (p->start_time);
@@ -436,7 +484,6 @@ exit(int status)
       batch_end_time = xticks; 
         batch_execution_time=batch_end_time-batch_start_time;
        print_statistics();
-    
     }
    
   }
@@ -445,7 +492,9 @@ exit(int status)
   p->estimate = 0;
   p->cpu_burst_start_tick = 0;
   p->cpu_burst_end_tick = 0;
-
+  p->cpu_usage = 0;
+  p->base_priority = 0;
+  p->dynamic_priority = 0;
   
 
   release(&wait_lock);
@@ -516,6 +565,7 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  struct proc *next_proc = 0;
 
   c->proc = 0;
   for(;;){
@@ -524,28 +574,17 @@ scheduler(void)
     
     switch (scheduling_policy) 
     {
-      case SCHED_NPREEMPT_FCFS: break;
-
-      case SCHED_NPREEMPT_SJF: ;
-        // Pointer to store the next process to run by the scheduler
-        struct proc *next_proc = 0;
-        int min_estimate = -1;
-
+      case SCHED_NPREEMPT_FCFS: 
         for(p = proc; p < &proc[NPROC]; p++) {
-          if(scheduling_policy != SCHED_NPREEMPT_SJF) break; // Scheduling policy has changed, break out
-
+          if (scheduling_policy != SCHED_NPREEMPT_FCFS) break; // Check if scheduling policy changed from FCFS
+          
           acquire(&p->lock);
           if(p->state == RUNNABLE) {
-            if(!p->from_forkp) { // This is not a batch process, start the execution of this process immediately
-              p->state = RUNNING;
-              c->proc = p;
-              swtch(&c->context, &p->context);
-
-              // Process is done running for now.
-              // It should have changed its p->state before coming back.
-              c->proc = 0;
-            }
-            else {
+            // Switch to chosen process.  It is the process's job
+            // to release its lock and then reacquire it
+            // before jumping back to us.
+            p->state = RUNNING;
+            if (p->from_forkp) {
               uint xticks;
               if (!holding(&tickslock)) {
                 acquire(&tickslock);
@@ -555,46 +594,16 @@ scheduler(void)
               else xticks = ticks;
               p->runnable_end = xticks;
               batch_waiting_time += (p->runnable_end) - (p->runnable_start);
-
-              if(min_estimate == -1) { // If this is the first runnable process encountered, update differently
-                next_proc = p;
-                min_estimate = p->estimate;
-              }
-              else if(min_estimate > p->estimate) { // Obtain the minimum estimate
-                next_proc = p;
-                min_estimate = p->estimate;
-              }
             }
+            c->proc = p;
+            swtch(&c->context, &p->context);
+
+            // Process is done running for now.
+            // It should have changed its p->state before coming back.
+            c->proc = 0;
           }
           release(&p->lock);
         }
-
-        if (!next_proc) continue;
-        acquire(&next_proc->lock);
-        
-        next_proc->state = RUNNING; // Start the execution of next process
-
-        if(next_proc->from_forkp) { // Only perform job length estimate calculations if the process is from a batch
-          uint xticks; // Store the start tick variable
-          if (!holding(&tickslock)) {
-             acquire(&tickslock);
-             xticks = ticks;
-             release(&tickslock);
-          }
-          else xticks = ticks;
-          next_proc->cpu_burst_start_tick = xticks;
-          next_proc->runnable_end = xticks;
-          batch_waiting_time += (next_proc->runnable_end) - (next_proc->runnable_start);
-        }
-
-        c->proc = next_proc;
-        swtch(&c->context, &next_proc->context); // Context switch to the process
-        
-        // Process is done running for now
-        // Process no longer has RUNNING state
-        c->proc = 0;
-
-        release(&next_proc->lock);
         break;
 
       case SCHED_PREEMPT_RR: 
@@ -629,7 +638,124 @@ scheduler(void)
         }
         break;
 
-      case SCHED_PREEMPT_UNIX: break;
+      case SCHED_NPREEMPT_SJF: ;
+        // Reset the pointer to the next process to be run by the scheduler to 0
+        next_proc = 0;
+        int min_estimate = -1;
+
+        for(p = proc; p < &proc[NPROC]; p++) {
+          if(scheduling_policy != SCHED_NPREEMPT_SJF) break; // Scheduling policy has changed, break out
+
+          acquire(&p->lock);
+          if(p->state == RUNNABLE) {
+            if(!p->from_forkp) { // This is not a batch process, start the execution of this process immediately
+              p->state = RUNNING;
+              c->proc = p;
+              swtch(&c->context, &p->context);
+
+              // Process is done running for now.
+              // It should have changed its p->state before coming back.
+              c->proc = 0;
+            }
+            else  {
+              if(min_estimate == -1) { // If this is the first runnable process encountered, update differently
+                next_proc = p;
+                min_estimate = p->estimate;
+              }
+              else if(min_estimate > p->estimate) { // Obtain the minimum estimate
+                next_proc = p;
+                min_estimate = p->estimate;
+              }
+            }
+          }
+          release(&p->lock);
+        }
+
+        if (!next_proc) continue;
+
+        acquire(&next_proc->lock);
+        next_proc->state = RUNNING; // Start the execution of next process
+
+        uint xticks; // Store the start tick variable
+        if (!holding(&tickslock)) {
+           acquire(&tickslock);
+           xticks = ticks;
+           release(&tickslock);
+        }
+        else xticks = ticks;
+        next_proc->cpu_burst_start_tick = xticks;
+        next_proc->runnable_end = xticks;
+        batch_waiting_time += (next_proc->runnable_end) - (next_proc->runnable_start);
+
+        c->proc = next_proc;
+        swtch(&c->context, &next_proc->context); // Context switch to the process
+        
+        // Process is done running for now
+        // Process no longer has RUNNING state
+        c->proc = 0;
+
+        release(&next_proc->lock);
+        break;
+
+      case SCHED_PREEMPT_UNIX:
+        for(p = proc; p < &proc[NPROC]; p++) {
+          if(scheduling_policy != SCHED_PREEMPT_UNIX) break; // Scheduling policy has changed, break out
+
+          acquire(&p->lock);
+          if(p->state == RUNNABLE) {
+            if(p->from_forkp) { // Update unix scheduling variables only if they are from the batch
+              p->cpu_usage = (p->cpu_usage >> 1);
+              p->dynamic_priority = p->base_priority + (p->cpu_usage >> 1);
+            }
+          }
+          release(&p->lock);
+        }
+
+        next_proc = 0;
+        int min_priority = -1;
+
+        for(p = proc; p < &proc[NPROC]; p++) {
+          if(scheduling_policy != SCHED_PREEMPT_UNIX) break; // Scheduling policy has changed, break out
+
+          acquire(&p->lock);
+          if(p->state == RUNNABLE) {
+            if(!p->from_forkp) { // This is not a batch process, start the execution of this process immediately
+              p->state = RUNNING;
+              c->proc = p;
+              swtch(&c->context, &p->context);
+
+              // Process is done running for now.
+              // It should have changed its p->state before coming back.
+              c->proc = 0;
+            }
+            else {
+              if(min_priority == -1) { // If this is the first runnable process encountered, update differently
+                next_proc = p;
+                min_priority = p->dynamic_priority;
+              }
+              else if(min_priority > p->dynamic_priority) { // Obtain the minimum priority process
+                next_proc = p;
+                min_priority = p->dynamic_priority;
+              }
+            }
+          }
+          release(&p->lock);
+        }
+
+        if(!next_proc) continue;
+
+        acquire(&next_proc->lock);
+
+        next_proc->state = RUNNING; // Start the execution of next process
+        c->proc = next_proc;
+        swtch(&c->context, &next_proc->context); // Context switch to the process
+        
+        // Process is done running for now
+        // Process no longer has RUNNING state
+        c->proc = 0;
+
+        release(&next_proc->lock);
+        break;
 
       default: break;
     }
@@ -684,9 +810,31 @@ yield(void)
     p->cpu_burst_end_tick = xticks; 
 
     int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
-    if (cpu_burst_length)
+    if (cpu_burst_length) {
+
+      if(p->estimate){
+        cpu_bursts_error_count++;
+        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length;
+        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
+      }
+
       p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
-                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new estimate
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new 
+      cpu_bursts_count++;
+      cpu_bursts_avg += cpu_burst_length;
+      if(cpu_burst_length > cpu_bursts_max) cpu_bursts_max = cpu_burst_length;
+      if(cpu_bursts_min == -1 || cpu_burst_length < cpu_bursts_min) cpu_bursts_min = cpu_burst_length;
+    }
+
+    if(p->estimate){
+      cpu_est_bursts_count++;
+      cpu_est_bursts_avg += p->estimate;
+      if(p->estimate > cpu_est_bursts_max) cpu_est_bursts_max = p->estimate;
+      if(cpu_est_bursts_min == -1 || cpu_est_bursts_min > p->estimate) cpu_est_bursts_min = p->estimate;
+    }
+
+    // ############################## UNIX SCHEDULER CALCULATIONS ##############################
+    p->cpu_usage += SCHED_PARAM_CPU_USAGE;
   }
 
   sched();
@@ -757,11 +905,34 @@ sleep(void *chan, struct spinlock *lk)
        release(&tickslock);
     }
     else xticks = ticks;
-    p->cpu_burst_end_tick = xticks; // ?????????????????? should we remove cpu burst end tick from the process table and use the local variable only ??????????????
+    p->cpu_burst_end_tick = xticks;
 
     int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
-    p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
-                  + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new estimate
+    if (cpu_burst_length) {
+
+      if(p->estimate){
+        cpu_bursts_error_count++;
+        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length;
+        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
+      }
+
+      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new 
+      cpu_bursts_count++;
+      cpu_bursts_avg += cpu_burst_length;
+      if(cpu_burst_length > cpu_bursts_max) cpu_bursts_max = cpu_burst_length;
+      if(cpu_bursts_min == -1 || cpu_burst_length < cpu_bursts_min) cpu_bursts_min = cpu_burst_length;
+    }
+
+    if(p->estimate){
+      cpu_est_bursts_count++;
+      cpu_est_bursts_avg += p->estimate;
+      if(p->estimate > cpu_est_bursts_max) cpu_est_bursts_max = p->estimate;
+      if(cpu_est_bursts_min == -1 || cpu_est_bursts_min > p->estimate) cpu_est_bursts_min = p->estimate;
+    }
+
+    // ############################## UNIX SCHEDULER CALCULATIONS ##############################
+    p->cpu_usage += (SCHED_PARAM_CPU_USAGE >> 1);
   }
 
   sched();
@@ -1363,7 +1534,7 @@ forkp(int priority)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
   np->from_forkp = 1;
-  np->priority = priority;
+  np->base_priority = priority;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -1406,10 +1577,17 @@ forkp(int priority)
 void 
 print_statistics (void) 
 {
-  printf("Batch execution time: %d\nAverage turn-around time: %d\nAverage waiting time: %d\nCompletion time: avg: %d, max: %d, min: %d\
-          CPU bursts: count: 56, avg: 136, max: 204, min: 1\nCPU burst estimates: count: 56, avg: 117, max: 197, min: 50\nCPU burst estimation error: count: 46, avg: 50",\
-          batch_execution_time, batch_turnaround_time / batch_size, batch_waiting_time / batch_size, batch_completion_time_avg / batch_size,\
-          batch_completion_time_max, batch_completion_time_min);
+  printf("Batch execution time: %d\nAverage turn-around time: %d\nAverage waiting time: %d\nCompletion time: avg: %d, max: %d, min: %d",\
+        batch_execution_time, batch_turnaround_time / batch_size, batch_waiting_time / batch_size,\
+        batch_completion_time_avg / batch_size, batch_completion_time_max, batch_completion_time_min);
+  if(scheduling_policy == SCHED_NPREEMPT_SJF) {
+    printf("CPU bursts: count: %d, avg: %d, max: %d, min: %d\nCPU burst estimates: count: %d, avg: %d, max: %d, min: %d\n\
+            CPU burst estimation error: count: %d, avg: %d",\
+            cpu_bursts_count, (cpu_bursts_count ? cpu_bursts_avg / cpu_bursts_count : 0), cpu_bursts_max, cpu_bursts_min,\
+            cpu_est_bursts_count, (cpu_est_bursts_count ? cpu_est_bursts_avg / cpu_est_bursts_count : cpu_est_bursts_count),\
+            cpu_est_bursts_max, cpu_est_bursts_min, cpu_bursts_error_count, (cpu_bursts_error_count ? cpu_bursts_error_avg / cpu_bursts_error_count : cpu_bursts_error_count));
+  }
+  
   batch_size = 0;
   batch_size_running = 0;
   batch_start_time = -1;
@@ -1420,4 +1598,17 @@ print_statistics (void)
   batch_completion_time_avg = 0;
   batch_completion_time_min = -1;
   batch_completion_time_max = 0;
+
+  cpu_bursts_count = 0;
+  cpu_bursts_avg = 0;
+  cpu_bursts_max = 0;
+  cpu_bursts_min = -1;
+
+  cpu_est_bursts_count = 0;
+  cpu_est_bursts_avg = 0;
+  cpu_est_bursts_max = 0;
+  cpu_est_bursts_min = -1;
+
+  cpu_bursts_error_count = 0;
+  cpu_bursts_error_avg = 0;
 }
