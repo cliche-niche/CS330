@@ -116,4 +116,6 @@ struct proc {
   int estimate;             // Estimate of the next CPU burst length
   int cpu_burst_start_tick; // Stores the tick when the CPU burst starts
   int cpu_burst_end_tick;   // Stores the tick when the CPU burst ends
+  int runnable_start;       // Stores the tick when the process became runnable
+  int runnable_end;         // Stores the tick when the process started running
 };

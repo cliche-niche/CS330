@@ -9,6 +9,7 @@
 
 struct cpu cpus[NCPU];
 
+
 struct proc proc[NPROC];
 
 struct proc *initproc;
@@ -21,6 +22,17 @@ struct spinlock pid_lock;
 // default sched policy will be set to 
 // RR in main by calling schedpolicy(RR)
 int scheduling_policy;
+int batch_size = 0;
+int batch_size_running = 0;
+int batch_start_time = -1;
+int batch_end_time = 0;
+int batch_execution_time = 0;
+int batch_turnaround_time = 0;
+int batch_waiting_time = 0;
+int batch_completion_time_avg = 0;
+int batch_completion_time_min = -1;
+int batch_completion_time_max = 0;
+void print_statistics(void);
 // ################################
 
 
@@ -389,14 +401,51 @@ exit(int status)
   
   acquire(&p->lock);
 
-  p->xstate = status;
-  p->state = ZOMBIE;
-
   // UG-nation strikes again
   acquire(&tickslock);
   p->end_time = ticks;
   release(&tickslock);
   // UG-nation leaves
+
+  if (p->from_forkp) {
+    batch_size_running--;
+
+
+
+    batch_turnaround_time += (p->end_time) - (p->creat_time);
+    int completion_time = (p->end_time) - (p->start_time);
+    batch_completion_time_avg += completion_time;
+    if (batch_completion_time_min == -1) {
+      batch_completion_time_min = completion_time;
+    } else if (batch_completion_time_min > completion_time) {
+      batch_completion_time_min = completion_time;
+    }
+
+    if (batch_completion_time_max < completion_time) {
+      batch_completion_time_max = completion_time;
+    }
+
+    if(batch_size_running == 0) {
+      uint xticks;
+      if (!holding(&tickslock)) {
+        acquire(&tickslock);
+        xticks = ticks;
+        release(&tickslock);
+      }
+      else xticks = ticks;
+      batch_end_time = xticks; 
+        batch_execution_time=batch_end_time-batch_start_time;
+       print_statistics();
+    
+    }
+   
+  }
+  p->xstate = status;
+  p->state = ZOMBIE;
+  p->estimate = 0;
+  p->cpu_burst_start_tick = 0;
+  p->cpu_burst_end_tick = 0;
+
   
 
   release(&wait_lock);
@@ -496,18 +545,31 @@ scheduler(void)
               // It should have changed its p->state before coming back.
               c->proc = 0;
             }
-            else if(min_estimate == -1) { // If this is the first runnable process encountered, update differently
-              next_proc = p;
-              min_estimate = p->estimate;
-            }
-            else if(min_estimate > p->estimate) { // Obtain the minimum estimate
-              next_proc = p;
-              min_estimate = p->estimate;
+            else {
+              uint xticks;
+              if (!holding(&tickslock)) {
+                acquire(&tickslock);
+                xticks = ticks;
+                release(&tickslock);
+              }
+              else xticks = ticks;
+              p->runnable_end = xticks;
+              batch_waiting_time += (p->runnable_end) - (p->runnable_start);
+
+              if(min_estimate == -1) { // If this is the first runnable process encountered, update differently
+                next_proc = p;
+                min_estimate = p->estimate;
+              }
+              else if(min_estimate > p->estimate) { // Obtain the minimum estimate
+                next_proc = p;
+                min_estimate = p->estimate;
+              }
             }
           }
           release(&p->lock);
         }
 
+        if (!next_proc) continue;
         acquire(&next_proc->lock);
         
         next_proc->state = RUNNING; // Start the execution of next process
@@ -521,6 +583,8 @@ scheduler(void)
           }
           else xticks = ticks;
           next_proc->cpu_burst_start_tick = xticks;
+          next_proc->runnable_end = xticks;
+          batch_waiting_time += (next_proc->runnable_end) - (next_proc->runnable_start);
         }
 
         c->proc = next_proc;
@@ -543,6 +607,17 @@ scheduler(void)
             // to release its lock and then reacquire it
             // before jumping back to us.
             p->state = RUNNING;
+            if (p->from_forkp) {
+              uint xticks;
+              if (!holding(&tickslock)) {
+                acquire(&tickslock);
+                xticks = ticks;
+                release(&tickslock);
+              }
+              else xticks = ticks;
+              p->runnable_end = xticks;
+              batch_waiting_time += (p->runnable_end) - (p->runnable_start);
+            }
             c->proc = p;
             swtch(&c->context, &p->context);
 
@@ -605,7 +680,8 @@ yield(void)
        release(&tickslock);
     }
     else xticks = ticks;
-    p->cpu_burst_end_tick = xticks; // ?????????????????? should we remove cpu burst end tick from the process table and use the local variable only ??????????????
+    p->runnable_start = xticks;
+    p->cpu_burst_end_tick = xticks; 
 
     int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
     if (cpu_burst_length)
@@ -710,6 +786,16 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
+        if (p->from_forkp) {
+          uint xticks;
+          if (!holding(&tickslock)) {
+            acquire(&tickslock);
+            xticks = ticks;
+            release(&tickslock);
+          }
+          else xticks = ticks;
+          p->runnable_start = xticks;
+        }
       }
       release(&p->lock);
     }
@@ -731,6 +817,16 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
+        if (p->from_forkp) {
+          uint xticks;
+          if (!holding(&tickslock)) {
+            acquire(&tickslock);
+            xticks = ticks;
+            release(&tickslock);
+          }
+          else xticks = ticks;
+          p->runnable_start = xticks;
+        }
       }
       release(&p->lock);
       return 0;
@@ -1289,5 +1385,39 @@ forkp(int priority)
   np->state = RUNNABLE;
   release(&np->lock);
 
+
+  uint xticks;
+  if (!holding(&tickslock)) {
+    acquire(&tickslock);
+    xticks = ticks;
+    release(&tickslock);
+  }
+  else xticks = ticks;
+  np->runnable_start = xticks;
+  if (batch_start_time == -1) {
+    batch_start_time = xticks;
+  }
+  batch_size++;
+  batch_size_running++;
+
   return pid;
+}
+
+void 
+print_statistics (void) 
+{
+  printf("Batch execution time: %d\nAverage turn-around time: %d\nAverage waiting time: %d\nCompletion time: avg: %d, max: %d, min: %d\
+          CPU bursts: count: 56, avg: 136, max: 204, min: 1\nCPU burst estimates: count: 56, avg: 117, max: 197, min: 50\nCPU burst estimation error: count: 46, avg: 50",\
+          batch_execution_time, batch_turnaround_time / batch_size, batch_waiting_time / batch_size, batch_completion_time_avg / batch_size,\
+          batch_completion_time_max, batch_completion_time_min);
+  batch_size = 0;
+  batch_size_running = 0;
+  batch_start_time = -1;
+  batch_end_time = 0;
+  batch_execution_time = 0;
+  batch_turnaround_time = 0;
+  batch_waiting_time = 0;
+  batch_completion_time_avg = 0;
+  batch_completion_time_min = -1;
+  batch_completion_time_max = 0;
 }
