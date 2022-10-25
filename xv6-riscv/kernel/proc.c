@@ -477,7 +477,61 @@ scheduler(void)
     {
       case SCHED_NPREEMPT_FCFS: break;
 
-      case SCHED_NPREEMPT_SJF: break;
+      case SCHED_NPREEMPT_SJF: ;
+        // Pointer to store the next process to run by the scheduler
+        struct proc *next_proc = 0;
+        int min_estimate = -1;
+
+        for(p = proc; p < &proc[NPROC]; p++) {
+          if(scheduling_policy != SCHED_NPREEMPT_SJF) break; // Scheduling policy has changed, break out
+
+          acquire(&p->lock);
+          if(p->state == RUNNABLE) {
+            if(!p->from_forkp) { // This is not a batch process, start the execution of this process immediately
+              p->state = RUNNING;
+              c->proc = p;
+              swtch(&c->context, &p->context);
+
+              // Process is done running for now.
+              // It should have changed its p->state before coming back.
+              c->proc = 0;
+            }
+            else if(min_estimate == -1) { // If this is the first runnable process encountered, update differently
+              next_proc = p;
+              min_estimate = p->estimate;
+            }
+            else if(min_estimate > p->estimate) { // Obtain the minimum estimate
+              next_proc = p;
+              min_estimate = p->estimate;
+            }
+          }
+          release(&p->lock);
+        }
+
+        acquire(&next_proc->lock);
+        
+        next_proc->state = RUNNING; // Start the execution of next process
+
+        if(next_proc->from_forkp) { // Only perform job length estimate calculations if the process is from a batch
+          uint xticks; // Store the start tick variable
+          if (!holding(&tickslock)) {
+             acquire(&tickslock);
+             xticks = ticks;
+             release(&tickslock);
+          }
+          else xticks = ticks;
+          next_proc->cpu_burst_start_tick = xticks;
+        }
+
+        c->proc = next_proc;
+        swtch(&c->context, &next_proc->context); // Context switch to the process
+        
+        // Process is done running for now
+        // Process no longer has RUNNING state
+        c->proc = 0;
+
+        release(&next_proc->lock);
+        break;
 
       case SCHED_PREEMPT_RR: 
         for(p = proc; p < &proc[NPROC]; p++) {
@@ -541,6 +595,24 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+
+  if(p->from_forkp) { // Only perform job length estimate calculations if the process is from a batch
+    // Store the end of the CPU burst tick for calculating the estimate
+    uint xticks;
+    if (!holding(&tickslock)) {
+       acquire(&tickslock);
+       xticks = ticks;
+       release(&tickslock);
+    }
+    else xticks = ticks;
+    p->cpu_burst_end_tick = xticks; // ?????????????????? should we remove cpu burst end tick from the process table and use the local variable only ??????????????
+
+    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
+    if (cpu_burst_length)
+      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new estimate
+  }
+
   sched();
   release(&p->lock);
 }
@@ -599,6 +671,22 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+
+  if(p->from_forkp) { // Only perform job length estimate calculations if the process is from a batch
+    // Store the end of the CPU burst tick for calculating the estimate
+    uint xticks;
+    if (!holding(&tickslock)) {
+       acquire(&tickslock);
+       xticks = ticks;
+       release(&tickslock);
+    }
+    else xticks = ticks;
+    p->cpu_burst_end_tick = xticks; // ?????????????????? should we remove cpu burst end tick from the process table and use the local variable only ??????????????
+
+    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
+    p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                  + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new estimate
+  }
 
   sched();
 

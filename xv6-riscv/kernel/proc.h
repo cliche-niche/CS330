@@ -114,4 +114,6 @@ struct proc {
   int priority;             // Priority of the process
   int from_forkp;           // Process created from forkp()
   int estimate;             // Estimate of the next CPU burst length
+  int cpu_burst_start_tick; // Stores the tick when the CPU burst starts
+  int cpu_burst_end_tick;   // Stores the tick when the CPU burst ends
 };

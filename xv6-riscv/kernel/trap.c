@@ -77,6 +77,7 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
+  // do not give up the CPU if the scheduling policy is non pre-emptive
   if(which_dev == 2 && scheduling_policy != SCHED_NPREEMPT_FCFS && scheduling_policy != SCHED_NPREEMPT_FCFS)
     yield();
 
@@ -150,6 +151,7 @@ kerneltrap()
   }
 
   // give up the CPU if this is a timer interrupt.
+  // do not give up the CPU if the scheduling policy is non pre-emptive
   if(which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING && scheduling_policy != SCHED_NPREEMPT_FCFS && scheduling_policy != SCHED_NPREEMPT_SJF)
     yield();
 
