@@ -1577,12 +1577,12 @@ forkp(int priority)
 void 
 print_statistics (void) 
 {
-  printf("Batch execution time: %d\nAverage turn-around time: %d\nAverage waiting time: %d\nCompletion time: avg: %d, max: %d, min: %d",\
+  printf("\nBatch execution time: %d\nAverage turn-around time: %d\nAverage waiting time: %d\nCompletion time: avg: %d, max: %d, min: %d\n",\
         batch_execution_time, batch_turnaround_time / batch_size, batch_waiting_time / batch_size,\
         batch_completion_time_avg / batch_size, batch_completion_time_max, batch_completion_time_min);
   if(scheduling_policy == SCHED_NPREEMPT_SJF) {
     printf("CPU bursts: count: %d, avg: %d, max: %d, min: %d\nCPU burst estimates: count: %d, avg: %d, max: %d, min: %d\n\
-            CPU burst estimation error: count: %d, avg: %d",\
+            CPU burst estimation error: count: %d, avg: %d\n",\
             cpu_bursts_count, (cpu_bursts_count ? cpu_bursts_avg / cpu_bursts_count : 0), cpu_bursts_max, cpu_bursts_min,\
             cpu_est_bursts_count, (cpu_est_bursts_count ? cpu_est_bursts_avg / cpu_est_bursts_count : cpu_est_bursts_count),\
             cpu_est_bursts_max, cpu_est_bursts_min, cpu_bursts_error_count, (cpu_bursts_error_count ? cpu_bursts_error_avg / cpu_bursts_error_count : cpu_bursts_error_count));
