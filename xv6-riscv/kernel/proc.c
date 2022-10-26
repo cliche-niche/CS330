@@ -710,6 +710,7 @@ scheduler(void)
             if(p->from_forkp) { // Update unix scheduling variables only if they are from the batch
               p->cpu_usage = (p->cpu_usage >> 1);
               p->dynamic_priority = p->base_priority + (p->cpu_usage >> 1);
+              // printf("PID: %d   |     CPU Usage: %d    |    Dynamic Priority: %d\n", p->pid, p->cpu_usage, p->dynamic_priority);
             }
           }
           release(&p->lock);
