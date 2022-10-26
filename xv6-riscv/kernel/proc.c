@@ -22,13 +22,18 @@ struct spinlock pid_lock;
 // default sched policy will be set to 
 // RR in main by calling schedpolicy(RR)
 int scheduling_policy;
+
 int batch_size = 0;
 int batch_size_running = 0;
+
 int batch_start_time = -1;
 int batch_end_time = 0;
 int batch_execution_time = 0;
+
 int batch_turnaround_time = 0;
+
 int batch_waiting_time = 0;
+
 int batch_completion_time_avg = 0;
 int batch_completion_time_min = -1;
 int batch_completion_time_max = 0;
@@ -422,7 +427,6 @@ exit(int status)
   // UG-nation leaves
 
   if (p->from_forkp) {
-
     uint xticks;
     if (!holding(&tickslock)) {
        acquire(&tickslock);
@@ -432,31 +436,33 @@ exit(int status)
     else xticks = ticks;
     p->cpu_burst_end_tick = xticks;
 
-    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
+    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // Actual CPU burst length
+    if (cpu_burst_length) { // If the actual length is non zero, update the estimate
 
-    if (cpu_burst_length) {
-
-      if(p->estimate){
-        cpu_bursts_error_count++;
-        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length;
-        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
-      }
-
-      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
-                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new 
+      // ################## Actual CPU Burst Statistics ##################
       cpu_bursts_count++;
       cpu_bursts_avg += cpu_burst_length;
       if(cpu_burst_length > cpu_bursts_max) cpu_bursts_max = cpu_burst_length;
       if(cpu_bursts_min == -1 || cpu_burst_length < cpu_bursts_min) cpu_bursts_min = cpu_burst_length;
+
+      if(p->estimate) { // If the estimate (BEFORE UPDATING) is also non zero, update the error counts
+        // ################## Error CPU Burst Statistics ##################
+        cpu_bursts_error_count++;
+        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length; // Add the absolute error
+        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
+      }
+
+      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // New estimate to predict the next cpu burst
     }
 
     if(p->estimate){
+      // ################## Estimated CPU Burst Statistics (AFTER UPDATING) ##################
       cpu_est_bursts_count++;
       cpu_est_bursts_avg += p->estimate;
       if(p->estimate > cpu_est_bursts_max) cpu_est_bursts_max = p->estimate;
       if(cpu_est_bursts_min == -1 || cpu_est_bursts_min > p->estimate) cpu_est_bursts_min = p->estimate;
     }
-
 
     batch_size_running--;
 
@@ -482,8 +488,8 @@ exit(int status)
       }
       else xticks = ticks;
       batch_end_time = xticks; 
-        batch_execution_time=batch_end_time-batch_start_time;
-       print_statistics();
+      batch_execution_time=batch_end_time-batch_start_time;
+      print_statistics();
     }
    
   }
@@ -566,6 +572,7 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   struct proc *next_proc = 0;
+  uint xticks;
 
   c->proc = 0;
   for(;;){
@@ -585,7 +592,6 @@ scheduler(void)
             // before jumping back to us.
             p->state = RUNNING;
             if (p->from_forkp) {
-              uint xticks;
               if (!holding(&tickslock)) {
                 acquire(&tickslock);
                 xticks = ticks;
@@ -617,7 +623,6 @@ scheduler(void)
             // before jumping back to us.
             p->state = RUNNING;
             if (p->from_forkp) {
-              uint xticks;
               if (!holding(&tickslock)) {
                 acquire(&tickslock);
                 xticks = ticks;
@@ -676,7 +681,6 @@ scheduler(void)
         acquire(&next_proc->lock);
         next_proc->state = RUNNING; // Start the execution of next process
 
-        uint xticks; // Store the start tick variable
         if (!holding(&tickslock)) {
            acquire(&tickslock);
            xticks = ticks;
@@ -745,8 +749,17 @@ scheduler(void)
         if(!next_proc) continue;
 
         acquire(&next_proc->lock);
-
         next_proc->state = RUNNING; // Start the execution of next process
+
+        if (!holding(&tickslock)) {
+           acquire(&tickslock);
+           xticks = ticks;
+           release(&tickslock);
+        }
+        else xticks = ticks;
+        next_proc->runnable_end = xticks;
+        batch_waiting_time += (next_proc->runnable_end) - (next_proc->runnable_start);
+        
         c->proc = next_proc;
         swtch(&c->context, &next_proc->context); // Context switch to the process
         
@@ -797,8 +810,7 @@ yield(void)
   acquire(&p->lock);
   p->state = RUNNABLE;
 
-  if(p->from_forkp) { // Only perform job length estimate calculations if the process is from a batch
-    // Store the end of the CPU burst tick for calculating the estimate
+  if(p->from_forkp) { // Perform various scheduling algorithm and batch statistic calculations only if the process is from the batch
     uint xticks;
     if (!holding(&tickslock)) {
        acquire(&tickslock);
@@ -806,27 +818,31 @@ yield(void)
        release(&tickslock);
     }
     else xticks = ticks;
+    p->cpu_burst_end_tick = xticks;
     p->runnable_start = xticks;
-    p->cpu_burst_end_tick = xticks; 
 
-    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
-    if (cpu_burst_length) {
+    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // Actual CPU burst length
+    if (cpu_burst_length) { // If the actual length is non zero, update the estimate
 
-      if(p->estimate){
-        cpu_bursts_error_count++;
-        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length;
-        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
-      }
-
-      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
-                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new 
+      // ################## Actual CPU Burst Statistics ##################
       cpu_bursts_count++;
       cpu_bursts_avg += cpu_burst_length;
       if(cpu_burst_length > cpu_bursts_max) cpu_bursts_max = cpu_burst_length;
       if(cpu_bursts_min == -1 || cpu_burst_length < cpu_bursts_min) cpu_bursts_min = cpu_burst_length;
+
+      if(p->estimate) { // If the estimate (BEFORE UPDATING) is also non zero, update the error counts
+        // ################## Error CPU Burst Statistics ##################
+        cpu_bursts_error_count++;
+        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length; // Add the absolute error
+        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
+      }
+
+      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // New estimate to predict the next cpu burst
     }
 
     if(p->estimate){
+      // ################## Estimated CPU Burst Statistics (AFTER UPDATING) ##################
       cpu_est_bursts_count++;
       cpu_est_bursts_avg += p->estimate;
       if(p->estimate > cpu_est_bursts_max) cpu_est_bursts_max = p->estimate;
@@ -896,8 +912,7 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
-  if(p->from_forkp) { // Only perform job length estimate calculations if the process is from a batch
-    // Store the end of the CPU burst tick for calculating the estimate
+  if(p->from_forkp) { // Only perform scheduling algorithm and batch statistic updates on processes from the batch
     uint xticks;
     if (!holding(&tickslock)) {
        acquire(&tickslock);
@@ -907,24 +922,28 @@ sleep(void *chan, struct spinlock *lk)
     else xticks = ticks;
     p->cpu_burst_end_tick = xticks;
 
-    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // t(n)
-    if (cpu_burst_length) {
+    int cpu_burst_length = p->cpu_burst_end_tick - p->cpu_burst_start_tick; // Actual CPU burst length
+    if (cpu_burst_length) { // If the actual length is non zero, update the estimate
 
-      if(p->estimate){
-        cpu_bursts_error_count++;
-        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length;
-        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
-      }
-
-      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
-                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // new 
+      // ################## Actual CPU Burst Statistics ##################
       cpu_bursts_count++;
       cpu_bursts_avg += cpu_burst_length;
       if(cpu_burst_length > cpu_bursts_max) cpu_bursts_max = cpu_burst_length;
       if(cpu_bursts_min == -1 || cpu_burst_length < cpu_bursts_min) cpu_bursts_min = cpu_burst_length;
+
+      if(p->estimate) { // If the estimate (BEFORE UPDATING) is also non zero, update the error counts
+        // ################## Error CPU Burst Statistics ##################
+        cpu_bursts_error_count++;
+        if(p->estimate > cpu_burst_length) cpu_bursts_error_avg += p->estimate - cpu_burst_length; // Add the absolute error
+        else cpu_bursts_error_avg += cpu_burst_length - p->estimate;
+      }
+
+      p->estimate = cpu_burst_length - (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM
+                    + (SCHED_PARAM_SJF_A_NUMER*cpu_burst_length)/SCHED_PARAM_SJF_A_DENOM; // New estimate to predict the next cpu burst
     }
 
     if(p->estimate){
+      // ################## Estimated CPU Burst Statistics (AFTER UPDATING) ##################
       cpu_est_bursts_count++;
       cpu_est_bursts_avg += p->estimate;
       if(p->estimate > cpu_est_bursts_max) cpu_est_bursts_max = p->estimate;
@@ -1564,11 +1583,13 @@ forkp(int priority)
     release(&tickslock);
   }
   else xticks = ticks;
-  np->runnable_start = xticks;
-  if (batch_start_time == -1) {
+
+  np->runnable_start = xticks; // Used for calculating waiting time
+
+  if (batch_start_time == -1) { // First process from the batch has entered the ready queue
     batch_start_time = xticks;
   }
-  batch_size++;
+  batch_size++; // Increment batch size
   batch_size_running++;
 
   return pid;

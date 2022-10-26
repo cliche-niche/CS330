@@ -124,7 +124,7 @@ struct proc {
   int cpu_burst_start_tick; // Stores the tick when the CPU burst starts
   int cpu_burst_end_tick;   // Stores the tick when the CPU burst ends
 
-  // ##################### Batch Statistic Variables #####################
+  // ##################### Waiting Time Calculation Variables #####################
   int runnable_start;       // Stores the tick when the process became runnable
   int runnable_end;         // Stores the tick when the process started running
 };
