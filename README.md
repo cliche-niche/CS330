@@ -6,7 +6,7 @@ The assignments required us to implement programs in the xv6 OS evironment, and 
 + [Assignment#1-Part A](./Assignments/A1-A.md): Implement user programs which use syscalls like `getpid()`, `fork()`, `pipe()`, etc.
 + [Assignment#1-Part B](./Assignments/A1-B.md): Implement syscalls like `getppid()`, `waitpid()`, custom implementation of `fork()`, process info, etc.
 + [Assignment#1-Report](./Reports/A1.pdf): Contains a brief description of the `syscall`s implemented in Part B of Assignment 1.
-+ [Assignment#1-Part B](./Assignments/A2.md): Implement four scheduling algorithms: non-preemptive FCFS, non-preemptive SJF, preemptive RR, and preemptive UNIX scheduler.
++ [Assignment#2](./Assignments/A2.md): Implement four scheduling algorithms: non-preemptive FCFS, non-preemptive SJF, preemptive RR, and preemptive UNIX scheduler, and compare them using some statistics.
 
 #### Acknowledgements
-Most of the [xv6-riscv](./xv6-riscv/) directory was provided to us, we do not take credit for it. We have only made some minor changes/added new programs to it as part of our assignments, and they have been listed in markdown files included in the repository.
+Most of the xv6-riscv directory was provided to us (in each assignment), we do not take credit for it. We have only made some minor changes/ added new programs to it as part of our assignments, and they have been listed in markdown files included in the repository.
