@@ -9,6 +9,10 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+//added by UG - IITK 24//
+typedef struct cond_t cond_t;
+//UG - IITK 24//
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -16,6 +20,16 @@ void            brelse(struct buf*);
 void            bwrite(struct buf*);
 void            bpin(struct buf*);
 void            bunpin(struct buf*);
+
+//implemented by UG IITK 24//
+
+//condvar.c
+void            cond_wait(cond_t*,struct sleeplock*);
+void            cond_broadcast(cond_t*);
+void            cond_signal(cond_t*);
+
+//UG IITK 24//
+
 
 // console.c
 void            consoleinit(void);
@@ -110,6 +124,11 @@ int		ps(void);
 int		pinfo(int, uint64);
 int		forkp(int);
 int		schedpolicy(int);
+
+//implemented by UG - IITK 24 //
+void            condsleep(cond_t* ,struct sleeplock*);
+void            wakeupone(void*);
+// UG - IITK 24//
 
 // swtch.S
 void            swtch(struct context*, struct context*);
