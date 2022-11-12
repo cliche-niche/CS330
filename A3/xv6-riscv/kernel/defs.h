@@ -133,7 +133,7 @@ void            wakeupone(void*);
 //semaphore.c
 void            sem_init(struct semaphore*, int);
 void            sem_wait(struct semaphore*);
-void            sem_post(struct semaphore*)
+void            sem_post(struct semaphore*);
 // UG - IITK 24//
 
 // swtch.S

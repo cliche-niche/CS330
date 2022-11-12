@@ -7,6 +7,7 @@
 #include "defs.h"
 #include "procstat.h"
 #include "condvar.h"
+#include "sleeplock.h"
 
 int sched_policy;
 
@@ -1204,7 +1205,7 @@ schedpolicy(int x)
    return y;
 }
 
-//implemented by UG - IITK 24 //
+// ############################################## implemented by UG - IITK 24 ##############################################
 
 void
 condsleep(cond_t* cv, struct sleeplock *lk){
@@ -1226,7 +1227,7 @@ condsleep(cond_t* cv, struct sleeplock *lk){
   // so it's okay to release lk.
 
   acquire(&p->lock);  //DOC: sleeplock1
-  release(lk);
+  release(&lk->lk);
 
   // Go to sleep.
   p->chan = (void*)&cv;   //sleeping on channel of condition variable
@@ -1259,7 +1260,7 @@ condsleep(cond_t* cv, struct sleeplock *lk){
 
   // Reacquire original lock.
   release(&p->lock);
-  acquire(lk);
+  acquire(&lk->lk);
 }
 
 void
@@ -1289,4 +1290,4 @@ wakeupone(void *chan)
   }
 }
 
-// UG - IITK 24 //
+// ############################################## UG - IITK 24 ##############################################

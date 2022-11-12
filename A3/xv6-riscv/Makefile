@@ -114,12 +114,10 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 # details:
 # http://www.gnu.org/software/make/manual/html_node/Chained-Rules.html
 .PRECIOUS: %.o
-
+####################################### ADD BACK TEST FILES BRO #######################################
+# Specifically, barriergrouptest, barriertest, condprodconstest, semprodconstest #
 UPROGS=\
-        $U/_barriertest\
-	$U/_barriergrouptest\
 	$U/_cat\
-	$U/_condprodconstest\
 	$U/_echo\
 	$U/_find\
 	$U/_forksleep\
@@ -135,7 +133,6 @@ UPROGS=\
 	$U/_primes\
 	$U/_primefactors\
 	$U/_rm\
-	$U/_semprodconstest\
 	$U/_sh\
 	$U/_sleep\
 	$U/_stressfs\
