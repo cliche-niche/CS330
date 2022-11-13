@@ -121,6 +121,7 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 ####################################### ADD BACK TEST FILES BRO #######################################
 # Specifically, barriergrouptest, barriertest, condprodconstest, semprodconstest #
 UPROGS=\
+	$U/_barriergrouptest\
 	$U/_barriertest\
 	$U/_cat\
 	$U/_echo\

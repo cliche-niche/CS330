@@ -13,13 +13,14 @@
 void
 cond_wait(cond_t *cv, struct sleeplock *lock){
     if(lock->locked == 1){
-        condsleep(cv,lock);
+        condsleep(cv, lock);
     }
 }
 
 void
 cond_broadcast (cond_t *cv){
-    wakeup((void*) &cv);
+    printf("BROADCASTING!\n");
+    wakeup((void*) cv);
 }
 
 void

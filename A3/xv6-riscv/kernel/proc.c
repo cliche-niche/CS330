@@ -1234,7 +1234,7 @@ condsleep(cond_t* cv, struct sleeplock *lk){
   releasesleep(lk);
 
   // Go to sleep.
-  p->chan = (void*)&cv;   //sleeping on channel of condition variable
+  p->chan = (void*)cv;   //sleeping on channel of condition variable
   p->state = SLEEPING;
 
   p->cpu_usage += (SCHED_PARAM_CPU_USAGE/2);
@@ -1317,18 +1317,20 @@ barrier_alloc(void)
 void 
 barrier(int bin, int barrier_id, int num_proc)
 {
+  printf("%d: waiting outside lock to enter barrier %d\n", myproc()->pid, bin);
   acquiresleep(&(barriers[barrier_id].lk));
   printf("%d: Entered barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
   barriers[barrier_id].count++;
   if(barriers[barrier_id].count == num_proc) {
     barriers[barrier_id].count = 0;
-    printf("%d: Finished barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
     cond_broadcast(&barriers[barrier_id].cv);
   }
   else {
     cond_wait(&barriers[barrier_id].cv, &barriers[barrier_id].lk);
   }
+  printf("%d: Finished barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
   releasesleep(&(barriers[barrier_id].lk));
+  printf("%d: released lock for %d\n", myproc()->pid, bin);
 }
 
 void 
@@ -1336,7 +1338,7 @@ barrier_free(int barrier_id)
 {
   acquiresleep(&barrier_lock);
   barriers[barrier_id].pid = 0;
-  barriers[barrier_id].count = -1;
+  barriers[barrier_id].count = 0;
   releasesleep(&barrier_lock);
 }   
 // ############################################## UG - IITK 24 ##############################################
