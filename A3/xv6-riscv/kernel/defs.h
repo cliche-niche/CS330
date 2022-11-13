@@ -22,14 +22,14 @@ void            bwrite(struct buf*);
 void            bpin(struct buf*);
 void            bunpin(struct buf*);
 
-//implemented by UG IITK 24//
+// ######################### Implemented by UG IITK'24 ######################### //
 
 //condvar.c
 void            cond_wait(cond_t*,struct sleeplock*);
 void            cond_broadcast(cond_t*);
 void            cond_signal(cond_t*);
 
-//UG IITK 24//
+// ######################### UG IITK'24 ######################### //
 
 
 // console.c
@@ -126,15 +126,20 @@ int		pinfo(int, uint64);
 int		forkp(int);
 int		schedpolicy(int);
 
-//implemented by UG - IITK 24 //
+// ######################### Implemented by UG - IITK'24 ######################### //
+
 void            condsleep(cond_t* ,struct sleeplock*);
 void            wakeupone(void*);
+int             barrier_alloc(void);
+void            barrier(int, int, int);
+void            barrier_free(int);
 
-//semaphore.c
+// semaphore.c
 void            sem_init(struct semaphore*, int);
 void            sem_wait(struct semaphore*);
 void            sem_post(struct semaphore*);
-// UG - IITK 24//
+
+// ######################### UG - IITK'24 ######################### //
 
 // swtch.S
 void            swtch(struct context*, struct context*);

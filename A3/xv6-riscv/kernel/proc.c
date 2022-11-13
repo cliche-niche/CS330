@@ -6,8 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "procstat.h"
-#include "condvar.h"
-#include "sleeplock.h"
+#include "barrier.h"
 
 int sched_policy;
 
@@ -50,6 +49,11 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+// ####################### Implemented by UG IITK'24 #######################
+struct sleeplock barrier_lock;
+struct barrier barriers[NUM_BARRIERS] = {0};
+// ####################### Implemented by UG IITK'24 #######################
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -983,7 +987,7 @@ wakeup(void *chan)
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
-	p->waitstart = xticks;
+	      p->waitstart = xticks;
       }
       release(&p->lock);
     }
@@ -1010,7 +1014,7 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
-	p->waitstart = xticks;
+	      p->waitstart = xticks;
       }
       release(&p->lock);
       return 0;
@@ -1227,7 +1231,7 @@ condsleep(cond_t* cv, struct sleeplock *lk){
   // so it's okay to release lk.
 
   acquire(&p->lock);  //DOC: sleeplock1
-  release(&lk->lk);
+  releasesleep(lk);
 
   // Go to sleep.
   p->chan = (void*)&cv;   //sleeping on channel of condition variable
@@ -1260,7 +1264,7 @@ condsleep(cond_t* cv, struct sleeplock *lk){
 
   // Reacquire original lock.
   release(&p->lock);
-  acquire(&lk->lk);
+  acquiresleep(lk);
 }
 
 void
@@ -1290,4 +1294,49 @@ wakeupone(void *chan)
   }
 }
 
+int 
+barrier_alloc(void) 
+{
+  for(;;)
+  {
+    acquiresleep(&barrier_lock);
+    for (int i = 0; i < NUM_BARRIERS; i++)
+    {
+      if (!barriers[i].pid) {
+        barriers[i].pid = myproc()->pid;
+        barriers[i].count = 0;
+        initsleeplock(&barriers[i].lk, "UG@CSE IITK'24");
+        releasesleep(&barrier_lock);
+        return i;
+      }
+    }
+    releasesleep(&barrier_lock);
+  }
+}
+
+void 
+barrier(int bin, int barrier_id, int num_proc)
+{
+  acquiresleep(&(barriers[barrier_id].lk));
+  printf("%d: Entered barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
+  barriers[barrier_id].count++;
+  if(barriers[barrier_id].count == num_proc) {
+    barriers[barrier_id].count = 0;
+    printf("%d: Finished barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
+    cond_broadcast(&barriers[barrier_id].cv);
+  }
+  else {
+    cond_wait(&barriers[barrier_id].cv, &barriers[barrier_id].lk);
+  }
+  releasesleep(&(barriers[barrier_id].lk));
+}
+
+void 
+barrier_free(int barrier_id)
+{
+  acquiresleep(&barrier_lock);
+  barriers[barrier_id].pid = 0;
+  barriers[barrier_id].count = -1;
+  releasesleep(&barrier_lock);
+}   
 // ############################################## UG - IITK 24 ##############################################

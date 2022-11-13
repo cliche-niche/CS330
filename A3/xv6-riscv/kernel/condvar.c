@@ -19,7 +19,7 @@ cond_wait(cond_t *cv, struct sleeplock *lock){
 
 void
 cond_broadcast (cond_t *cv){
-    wakeup(&cv);
+    wakeup((void*) &cv);
 }
 
 void

@@ -181,3 +181,32 @@ sys_schedpolicy(void)
   if(argint(0, &x) < 0) return -1;
   return schedpolicy(x);
 }
+
+// ########################## Adulteration by UG@CSE IITK'24 ##########################
+
+uint64
+sys_barrier_alloc(void)
+{
+  return barrier_alloc();
+}
+
+uint64
+sys_barrier(void)
+{
+  int bin, id, np;
+  if (argint(0, &bin) < 0) return -1;
+  if (argint(1, &id) < 0) return -1;
+  if (argint(2, &np) < 0) return -1;
+  barrier(bin, id, np);
+  return 0;
+}
+
+uint64
+sys_barrier_free(void)
+{
+  int id;
+  if (argint(0, &id) < 0) return -1;
+  barrier_free(id);
+  return 0;
+}
+// ########################## Adulteration by UG@CSE IITK'24 ##########################

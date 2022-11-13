@@ -46,3 +46,9 @@ entry("ps");
 entry("pinfo");
 entry("forkp");
 entry("schedpolicy");
+
+# ////////////////////////// Adulteration by UG@CSE IITK'24 //////////////////////////
+entry("barrier_alloc");
+entry("barrier");
+entry("barrier_free");
+# ////////////////////////// Adulteration by UG@CSE IITK'24 //////////////////////////

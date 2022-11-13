@@ -51,3 +51,9 @@ void free(void*);
 int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
+
+// ########################## UG-Nation Strikes again ##########################
+int barrier_alloc(void);
+void barrier(int, int, int);
+void barrier_free(int);
+// ########################## UG-Nation Strikes again ##########################
