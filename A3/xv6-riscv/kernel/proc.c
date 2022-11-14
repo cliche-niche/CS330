@@ -51,8 +51,10 @@ extern char trampoline[]; // trampoline.S
 struct spinlock wait_lock;
 
 // ####################### Implemented by UG IITK'24 #######################
-struct sleeplock barrier_lock;
-struct barrier barriers[NUM_BARRIERS] = {0};
+struct barrier barriers[NUM_BARRIERS] = {0};  // La'barrieur arreiuy
+struct sleeplock barrier_lock;                // used when accessing the barrier array
+struct sleeplock releasecondsleep_lock;       // used to prevent deadlocks when multiple processes execute condsleep
+struct sleeplock print_lock;                  // used to print statements without jumbling up the output
 // ####################### Implemented by UG IITK'24 #######################
 
 // Allocate a page for each process's kernel stack.
@@ -973,21 +975,21 @@ void
 wakeup(void *chan)
 {
   struct proc *p;
-  uint xticks;
+  // uint xticks;
 
-  if (!holding(&tickslock)) {
-     acquire(&tickslock);
-     xticks = ticks;
-     release(&tickslock);
-  }
-  else xticks = ticks;
+  // if (!holding(&tickslock)) {
+  //    acquire(&tickslock);
+  //    xticks = ticks;
+  //    release(&tickslock);
+  // }
+  // else xticks = ticks;
 
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
-	      p->waitstart = xticks;
+	      // p->waitstart = xticks;
       }
       release(&p->lock);
     }
@@ -1230,11 +1232,17 @@ condsleep(cond_t* cv, struct sleeplock *lk){
   // (wakeup locks p->lock),
   // so it's okay to release lk.
 
-  acquire(&p->lock);  //DOC: sleeplock1
+  // a possible deadlock occurs when mutliple processes 
+  // acquire then own lock and then releasesleep lock
+  // essentially, two processes hold their own locks whilst trying
+  // to obtain the other's lock
+  acquiresleep(&releasecondsleep_lock);
+  acquire(&p->lock); // There used to be a deadlock here, now its just some lock i used to know
   releasesleep(lk);
+  releasesleep(&releasecondsleep_lock);
 
   // Go to sleep.
-  p->chan = (void*)cv;   //sleeping on channel of condition variable
+  p->chan = (void*) cv;   // sleeping on channel of condition variable
   p->state = SLEEPING;
 
   p->cpu_usage += (SCHED_PARAM_CPU_USAGE/2);
@@ -1317,9 +1325,10 @@ barrier_alloc(void)
 void 
 barrier(int bin, int barrier_id, int num_proc)
 {
-  printf("%d: waiting outside lock to enter barrier %d\n", myproc()->pid, bin);
   acquiresleep(&(barriers[barrier_id].lk));
+  acquiresleep(&print_lock);
   printf("%d: Entered barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
+  releasesleep(&print_lock);
   barriers[barrier_id].count++;
   if(barriers[barrier_id].count == num_proc) {
     barriers[barrier_id].count = 0;
@@ -1328,9 +1337,10 @@ barrier(int bin, int barrier_id, int num_proc)
   else {
     cond_wait(&barriers[barrier_id].cv, &barriers[barrier_id].lk);
   }
+  acquiresleep(&print_lock);
   printf("%d: Finished barrier#%d for barrier array id %d\n", myproc()->pid, bin, barrier_id);
+  releasesleep(&print_lock);
   releasesleep(&(barriers[barrier_id].lk));
-  printf("%d: released lock for %d\n", myproc()->pid, bin);
 }
 
 void 

@@ -50,6 +50,3 @@ holdingsleep(struct sleeplock *lk)
   release(&lk->lk);
   return r;
 }
-
-
-

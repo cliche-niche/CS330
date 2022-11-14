@@ -11,7 +11,7 @@ struct superblock;
 
 //added by UG - IITK 24//
 typedef struct cond_t cond_t;
-struct semaphore;
+typedef struct semaphore semaphore;
 //UG - IITK 24//
 
 // bio.c
@@ -126,7 +126,7 @@ int		pinfo(int, uint64);
 int		forkp(int);
 int		schedpolicy(int);
 
-// ######################### Implemented by UG - IITK'24 ######################### //
+// ######################### Trademark UG - IITK'24 (not really) ######################### //
 
 void            condsleep(cond_t* ,struct sleeplock*);
 void            wakeupone(void*);
@@ -135,11 +135,11 @@ void            barrier(int, int, int);
 void            barrier_free(int);
 
 // semaphore.c
-void            sem_init(struct semaphore*, int);
-void            sem_wait(struct semaphore*);
-void            sem_post(struct semaphore*);
+void            sem_init(semaphore*, int);
+void            sem_wait(semaphore*);
+void            sem_post(semaphore*);
 
-// ######################### UG - IITK'24 ######################### //
+// ######################### Trademark UG - IITK'24 (jk :hug:) ######################### //
 
 // swtch.S
 void            swtch(struct context*, struct context*);

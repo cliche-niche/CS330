@@ -1,4 +1,4 @@
-//implemented by UG - IITK 24
+// #################### implemented by UG - IITK 24 ####################
 
 #include "types.h"
 #include "riscv.h"
@@ -19,7 +19,6 @@ cond_wait(cond_t *cv, struct sleeplock *lock){
 
 void
 cond_broadcast (cond_t *cv){
-    printf("BROADCASTING!\n");
     wakeup((void*) cv);
 }
 
@@ -28,4 +27,4 @@ cond_signal (cond_t *cv){
     wakeupone(&cv);
 }
 
-// UG IITK - 24 //
+// #################### UG IITK - 24 #################### //
