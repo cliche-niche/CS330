@@ -25,5 +25,6 @@
 // ######################### UG Nation shall rise again #########################
 
 #define NUM_BARRIERS 10
+#define NUM_BUFFERS 20
 
 // ######################### The UG Nation rises-revisisted pt. 2 #########################

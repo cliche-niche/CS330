@@ -6,7 +6,10 @@
 #include "proc.h"
 #include "defs.h"
 #include "procstat.h"
+#include "sleeplock.h"
+#include "condvar.h"
 #include "barrier.h"
+#include "buffer.h"
 
 int sched_policy;
 
@@ -23,24 +26,24 @@ extern void forkret(void);
 static void freeproc(struct proc *p);
 
 //Stats
-static int batch_start = 0x7FFFFFFF;
-static int batchsize = 0;
-static int batchsize2 = 0;
-static int turnaround = 0;
-static int completion_tot = 0;
-static int waiting_tot = 0;
-static int completion_max = 0;
-static int completion_min = 0x7FFFFFFF;
-static int num_cpubursts = 0;
-static int cpubursts_tot = 0;
-static int cpubursts_max = 0;
-static int cpubursts_min = 0x7FFFFFFF;
-static int num_cpubursts_est = 0;
-static int cpubursts_est_tot = 0;
-static int cpubursts_est_max = 0;
-static int cpubursts_est_min = 0x7FFFFFFF;
-static int estimation_error = 0;
-static int estimation_error_instance = 0;
+// static int batch_start = 0x7FFFFFFF;
+// static int batchsize = 0;
+// static int batchsize2 = 0;
+// static int turnaround = 0;
+// static int completion_tot = 0;
+// static int waiting_tot = 0;
+// static int completion_max = 0;
+// static int completion_min = 0x7FFFFFFF;
+// static int num_cpubursts = 0;
+// static int cpubursts_tot = 0;
+// static int cpubursts_max = 0;
+// static int cpubursts_min = 0x7FFFFFFF;
+// static int num_cpubursts_est = 0;
+// static int cpubursts_est_tot = 0;
+// static int cpubursts_est_max = 0;
+// static int cpubursts_est_min = 0x7FFFFFFF;
+// static int estimation_error = 0;
+// static int estimation_error_instance = 0;
 
 extern char trampoline[]; // trampoline.S
 
@@ -53,6 +56,15 @@ struct spinlock wait_lock;
 // ####################### Implemented by UG IITK'24 #######################
 struct barrier barriers[NUM_BARRIERS] = {0};  // La'barrieur arreiuy
 struct sleeplock barrier_lock;                // used when accessing the barrier array
+
+
+struct buffer buffers[NUM_BUFFERS] = {0};
+struct sleeplock bufferinsert_lock;
+struct sleeplock bufferdelete_lock;
+
+int buffer_tail = 0;
+int buffer_head = 0;
+
 struct sleeplock releasecondsleep_lock;       // used to prevent deadlocks when multiple processes execute condsleep
 struct sleeplock print_lock;                  // used to print statements without jumbling up the output
 // ####################### Implemented by UG IITK'24 #######################
@@ -458,8 +470,8 @@ forkp(int priority)
 
   release(&np->lock);
 
-  batchsize++;
-  batchsize2++;
+  // batchsize++;
+  // batchsize2++;
 
   acquire(&wait_lock);
   np->parent = p;
@@ -495,7 +507,7 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-  uint xticks;
+  // uint xticks;
 
   if(p == initproc)
     panic("init exiting");
@@ -529,68 +541,68 @@ exit(int status)
 
   release(&wait_lock);
 
-  acquire(&tickslock);
-  xticks = ticks;
-  release(&tickslock);
+  // acquire(&tickslock);
+  // xticks = ticks;
+  // release(&tickslock);
 
-  p->endtime = xticks;
+  // p->endtime = xticks;
 
-  if (p->is_batchproc) {
+  // if (p->is_batchproc) {
 
-     if ((xticks - p->burst_start) > 0) {
-        num_cpubursts++;
-        cpubursts_tot += (xticks - p->burst_start);
-        if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
-        if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
-        if (p->nextburst_estimate > 0) {
-           estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
-           estimation_error_instance++;
-        }
-        p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
-        if (p->nextburst_estimate > 0) {
-           num_cpubursts_est++;
-           cpubursts_est_tot += p->nextburst_estimate;
-           if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
-           if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
-        }
-     }
+  //    if ((xticks - p->burst_start) > 0) {
+  //       num_cpubursts++;
+  //       cpubursts_tot += (xticks - p->burst_start);
+  //       if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
+  //       if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
+  //       if (p->nextburst_estimate > 0) {
+  //          estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
+  //          estimation_error_instance++;
+  //       }
+  //       p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
+  //       if (p->nextburst_estimate > 0) {
+  //          num_cpubursts_est++;
+  //          cpubursts_est_tot += p->nextburst_estimate;
+  //          if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
+  //          if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
+  //       }
+  //    }
 
-     if (p->stime < batch_start) batch_start = p->stime;
-     batchsize--;
-     turnaround += (p->endtime - p->stime);
-     waiting_tot += p->waittime;
-     completion_tot += p->endtime;
-     if (p->endtime > completion_max) completion_max = p->endtime;
-     if (p->endtime < completion_min) completion_min = p->endtime;
-     if (batchsize == 0) {
-        printf("\nBatch execution time: %d\n", p->endtime - batch_start);
-	printf("Average turn-around time: %d\n", turnaround/batchsize2);
-	printf("Average waiting time: %d\n", waiting_tot/batchsize2);
-	printf("Completion time: avg: %d, max: %d, min: %d\n", completion_tot/batchsize2, completion_max, completion_min);
-	if ((sched_policy == SCHED_NPREEMPT_FCFS) || (sched_policy == SCHED_NPREEMPT_SJF)) {
-	   printf("CPU bursts: count: %d, avg: %d, max: %d, min: %d\n", num_cpubursts, cpubursts_tot/num_cpubursts, cpubursts_max, cpubursts_min);
-	   printf("CPU burst estimates: count: %d, avg: %d, max: %d, min: %d\n", num_cpubursts_est, cpubursts_est_tot/num_cpubursts_est, cpubursts_est_max, cpubursts_est_min);
-	   printf("CPU burst estimation error: count: %d, avg: %d\n", estimation_error_instance, estimation_error/estimation_error_instance);
-	}
-	batchsize2 = 0;
-	batch_start = 0x7FFFFFFF;
-	turnaround = 0;
-	waiting_tot = 0;
-	completion_tot = 0;
-	completion_max = 0;
-	completion_min = 0x7FFFFFFF;
-	num_cpubursts = 0;
-        cpubursts_tot = 0;
-        cpubursts_max = 0;
-        cpubursts_min = 0x7FFFFFFF;
-	num_cpubursts_est = 0;
-        cpubursts_est_tot = 0;
-        cpubursts_est_max = 0;
-        cpubursts_est_min = 0x7FFFFFFF;
-	estimation_error = 0;
-        estimation_error_instance = 0;
-     }
-  }
+  //    if (p->stime < batch_start) batch_start = p->stime;
+  //    batchsize--;
+  //    turnaround += (p->endtime - p->stime);
+  //    waiting_tot += p->waittime;
+  //    completion_tot += p->endtime;
+  //    if (p->endtime > completion_max) completion_max = p->endtime;
+  //    if (p->endtime < completion_min) completion_min = p->endtime;
+  //    if (batchsize == 0) {
+  //       printf("\nBatch execution time: %d\n", p->endtime - batch_start);
+	// printf("Average turn-around time: %d\n", turnaround/batchsize2);
+	// printf("Average waiting time: %d\n", waiting_tot/batchsize2);
+	// printf("Completion time: avg: %d, max: %d, min: %d\n", completion_tot/batchsize2, completion_max, completion_min);
+	// if ((sched_policy == SCHED_NPREEMPT_FCFS) || (sched_policy == SCHED_NPREEMPT_SJF)) {
+	//    printf("CPU bursts: count: %d, avg: %d, max: %d, min: %d\n", num_cpubursts, cpubursts_tot/num_cpubursts, cpubursts_max, cpubursts_min);
+	//    printf("CPU burst estimates: count: %d, avg: %d, max: %d, min: %d\n", num_cpubursts_est, cpubursts_est_tot/num_cpubursts_est, cpubursts_est_max, cpubursts_est_min);
+	//    printf("CPU burst estimation error: count: %d, avg: %d\n", estimation_error_instance, estimation_error/estimation_error_instance);
+	// }
+	// batchsize2 = 0;
+	// batch_start = 0x7FFFFFFF;
+	// turnaround = 0;
+	// waiting_tot = 0;
+	// completion_tot = 0;
+	// completion_max = 0;
+	// completion_min = 0x7FFFFFFF;
+	// num_cpubursts = 0;
+  //       cpubursts_tot = 0;
+  //       cpubursts_max = 0;
+  //       cpubursts_min = 0x7FFFFFFF;
+	// num_cpubursts_est = 0;
+  //       cpubursts_est_tot = 0;
+  //       cpubursts_est_max = 0;
+  //       cpubursts_est_min = 0x7FFFFFFF;
+	// estimation_error = 0;
+  //       estimation_error_instance = 0;
+  //    }
+  // }
 
   // Jump into the scheduler, never to return.
   sched();
@@ -851,33 +863,33 @@ void
 yield(void)
 {
   struct proc *p = myproc();
-  uint xticks;
+  // uint xticks;
 
-  acquire(&tickslock);
-  xticks = ticks;
-  release(&tickslock);
+  // acquire(&tickslock);
+  // xticks = ticks;
+  // release(&tickslock);
 
   acquire(&p->lock);
   p->state = RUNNABLE;
-  p->waitstart = xticks;
-  p->cpu_usage += SCHED_PARAM_CPU_USAGE;
-  if ((p->is_batchproc) && ((xticks - p->burst_start) > 0)) {
-     num_cpubursts++;
-     cpubursts_tot += (xticks - p->burst_start);
-     if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
-     if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
-     if (p->nextburst_estimate > 0) {
-        estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
-	estimation_error_instance++;
-     }
-     p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
-     if (p->nextburst_estimate > 0) {
-        num_cpubursts_est++;
-        cpubursts_est_tot += p->nextburst_estimate;
-        if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
-        if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
-     }
-  }
+  // p->waitstart = xticks;
+  // p->cpu_usage += SCHED_PARAM_CPU_USAGE;
+  // if ((p->is_batchproc) && ((xticks - p->burst_start) > 0)) {
+  //    num_cpubursts++;
+  //    cpubursts_tot += (xticks - p->burst_start);
+  //    if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
+  //    if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
+  //    if (p->nextburst_estimate > 0) {
+  //       estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
+	// estimation_error_instance++;
+  //    }
+  //    p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
+  //    if (p->nextburst_estimate > 0) {
+  //       num_cpubursts_est++;
+  //       cpubursts_est_tot += p->nextburst_estimate;
+  //       if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
+  //       if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
+  //    }
+  // }
   sched();
   release(&p->lock);
 }
@@ -916,14 +928,14 @@ void
 sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
-  uint xticks;
+  // uint xticks;
 
-  if (!holding(&tickslock)) {
-     acquire(&tickslock);
-     xticks = ticks;
-     release(&tickslock);
-  }
-  else xticks = ticks;
+  // if (!holding(&tickslock)) {
+  //    acquire(&tickslock);
+  //    xticks = ticks;
+  //    release(&tickslock);
+  // }
+  // else xticks = ticks;
   
   // Must acquire p->lock in order to
   // change p->state and then call sched.
@@ -939,25 +951,25 @@ sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
-  p->cpu_usage += (SCHED_PARAM_CPU_USAGE/2);
+  // p->cpu_usage += (SCHED_PARAM_CPU_USAGE/2);
 
-  if ((p->is_batchproc) && ((xticks - p->burst_start) > 0)) {
-     num_cpubursts++;
-     cpubursts_tot += (xticks - p->burst_start);
-     if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
-     if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
-     if (p->nextburst_estimate > 0) {
-	estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
-        estimation_error_instance++;
-     }
-     p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
-     if (p->nextburst_estimate > 0) {
-        num_cpubursts_est++;
-        cpubursts_est_tot += p->nextburst_estimate;
-        if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
-        if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
-     }
-  }
+  // if ((p->is_batchproc) && ((xticks - p->burst_start) > 0)) {
+  //    num_cpubursts++;
+  //    cpubursts_tot += (xticks - p->burst_start);
+  //    if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
+  //    if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
+  //    if (p->nextburst_estimate > 0) {
+	// estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
+  //       estimation_error_instance++;
+  //    }
+  //    p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
+  //    if (p->nextburst_estimate > 0) {
+  //       num_cpubursts_est++;
+  //       cpubursts_est_tot += p->nextburst_estimate;
+  //       if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
+  //       if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
+  //    }
+  // }
 
   sched();
 
@@ -1003,11 +1015,11 @@ int
 kill(int pid)
 {
   struct proc *p;
-  uint xticks;
+  // uint xticks;
 
-  acquire(&tickslock);
-  xticks = ticks;
-  release(&tickslock);
+  // acquire(&tickslock);
+  // xticks = ticks;
+  // release(&tickslock);
 
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
@@ -1016,7 +1028,7 @@ kill(int pid)
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;
-	      p->waitstart = xticks;
+	      // p->waitstart = xticks;
       }
       release(&p->lock);
       return 0;
@@ -1216,14 +1228,14 @@ schedpolicy(int x)
 void
 condsleep(cond_t* cv, struct sleeplock *lk){
   struct proc *p = myproc();
-  uint xticks;
+  // uint xticks;
 
-  if (!holding(&tickslock)) {
-     acquire(&tickslock);
-     xticks = ticks;
-     release(&tickslock);
-  }
-  else xticks = ticks;
+  // if (!holding(&tickslock)) {
+  //    acquire(&tickslock);
+  //    xticks = ticks;
+  //    release(&tickslock);
+  // }
+  // else xticks = ticks;
   
   // Must acquire p->lock in order to
   // change p->state and then call sched.
@@ -1245,25 +1257,25 @@ condsleep(cond_t* cv, struct sleeplock *lk){
   p->chan = (void*) cv;   // sleeping on channel of condition variable
   p->state = SLEEPING;
 
-  p->cpu_usage += (SCHED_PARAM_CPU_USAGE/2);
+  // p->cpu_usage += (SCHED_PARAM_CPU_USAGE/2);
 
-  if ((p->is_batchproc) && ((xticks - p->burst_start) > 0)) {
-     num_cpubursts++;
-     cpubursts_tot += (xticks - p->burst_start);
-     if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
-     if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
-     if (p->nextburst_estimate > 0) {
-	estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
-        estimation_error_instance++;
-     }
-     p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
-     if (p->nextburst_estimate > 0) {
-        num_cpubursts_est++;
-        cpubursts_est_tot += p->nextburst_estimate;
-        if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
-        if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
-     }
-  }
+  // if ((p->is_batchproc) && ((xticks - p->burst_start) > 0)) {
+  //    num_cpubursts++;
+  //    cpubursts_tot += (xticks - p->burst_start);
+  //    if (cpubursts_max < (xticks - p->burst_start)) cpubursts_max = xticks - p->burst_start;
+  //    if (cpubursts_min > (xticks - p->burst_start)) cpubursts_min = xticks - p->burst_start;
+  //    if (p->nextburst_estimate > 0) {
+	// estimation_error += ((p->nextburst_estimate >= (xticks - p->burst_start)) ? (p->nextburst_estimate - (xticks - p->burst_start)) : ((xticks - p->burst_start) - p->nextburst_estimate));
+  //       estimation_error_instance++;
+  //    }
+  //    p->nextburst_estimate = (xticks - p->burst_start) - ((xticks - p->burst_start)*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM + (p->nextburst_estimate*SCHED_PARAM_SJF_A_NUMER)/SCHED_PARAM_SJF_A_DENOM;
+  //    if (p->nextburst_estimate > 0) {
+  //       num_cpubursts_est++;
+  //       cpubursts_est_tot += p->nextburst_estimate;
+  //       if (cpubursts_est_max < p->nextburst_estimate) cpubursts_est_max = p->nextburst_estimate;
+  //       if (cpubursts_est_min > p->nextburst_estimate) cpubursts_est_min = p->nextburst_estimate;
+  //    }
+  // }
 
   sched();
 
@@ -1279,21 +1291,21 @@ void
 wakeupone(void *chan)
 {
   struct proc *p;
-  uint xticks;
+  // uint xticks;
 
-  if (!holding(&tickslock)) {
-     acquire(&tickslock);
-     xticks = ticks;
-     release(&tickslock);
-  }
-  else xticks = ticks;
+  // if (!holding(&tickslock)) {
+  //    acquire(&tickslock);
+  //    xticks = ticks;
+  //    release(&tickslock);
+  // }
+  // else xticks = ticks;
 
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p != myproc()){
       acquire(&p->lock);
       if(p->state == SLEEPING && p->chan == chan) {
         p->state = RUNNABLE;
-	      p->waitstart = xticks;
+	      // p->waitstart = xticks;
         release(&p->lock);
         break;
       }
@@ -1302,10 +1314,12 @@ wakeupone(void *chan)
   }
 }
 
+// ################################# Barrier Code ################################# 
+
 int 
 barrier_alloc(void) 
 {
-  for(;;)
+  for(;;) // if free barrier is not found, loop again
   {
     acquiresleep(&barrier_lock);
     for (int i = 0; i < NUM_BARRIERS; i++)
@@ -1313,7 +1327,7 @@ barrier_alloc(void)
       if (!barriers[i].pid) {
         barriers[i].pid = myproc()->pid;
         barriers[i].count = 0;
-        initsleeplock(&barriers[i].lk, "UG@CSE IITK'24");
+        initsleeplock(&barriers[i].lk, "UG@CSE IITK'24 - Barrier");
         releasesleep(&barrier_lock);
         return i;
       }
@@ -1350,5 +1364,68 @@ barrier_free(int barrier_id)
   barriers[barrier_id].pid = 0;
   barriers[barrier_id].count = 0;
   releasesleep(&barrier_lock);
-}   
+}
+
+// ################################# Barrier Code #################################
+
+// ################################# Buffer Code #################################
+void
+buffer_cond_init() 
+{
+  buffer_tail = 0;
+  buffer_head = 0;
+  initsleeplock(&bufferinsert_lock, "UG@CSE IITK'24 - Buffer Insert");
+  initsleeplock(&bufferdelete_lock, "UG@CSE IITK'24 - Buffer Delete");
+  for(int i = 0; i < NUM_BUFFERS; i++) {
+    initsleeplock(&buffers[i].lk, "UG@CSE IITK'24 - Buffer Lock");
+    buffers[i].x = -1;
+    buffers[i].full = 0;
+  }
+}
+
+void
+cond_produce(int prod)
+{
+  int idx = 0;
+
+  acquiresleep(&bufferinsert_lock); // obtain the index where production is to be done
+  idx = buffer_tail;
+  buffer_tail = (buffer_tail + 1 == NUM_BUFFERS ? 0 : buffer_tail + 1);
+  releasesleep(&bufferinsert_lock);
+
+  acquiresleep(&buffers[idx].lk);
+  while(buffers[idx].full) cond_wait(&buffers[idx].deleted, &buffers[idx].lk);
+  buffers[idx].x = prod;
+  buffers[idx].full = 1;
+  cond_signal(&buffers[idx].inserted);
+  releasesleep(&buffers[idx].lk);
+}
+
+int
+cond_consume()
+{
+  int idx = 0;
+  int val = 0;
+
+  acquiresleep(&bufferdelete_lock);
+  idx = buffer_head;
+  buffer_head = (buffer_head + 1 == NUM_BUFFERS ? 0 : buffer_head + 1);
+  releasesleep(&bufferdelete_lock);
+
+  acquiresleep(&buffers[idx].lk);
+  while(!buffers[idx].full) cond_wait(&buffers[idx].inserted, &buffers[idx].lk);
+  val = buffers[idx].x;
+  buffers[idx].full = 0;
+  cond_signal(&buffers[idx].deleted);
+  releasesleep(&buffers[idx].lk);
+
+  acquiresleep(&print_lock);
+  printf("%d ", val);
+  releasesleep(&print_lock);
+
+  return val;
+}
+// ################################# Buffer Code #################################
+
+
 // ############################################## UG - IITK 24 ##############################################

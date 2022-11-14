@@ -133,6 +133,9 @@ void            wakeupone(void*);
 int             barrier_alloc(void);
 void            barrier(int, int, int);
 void            barrier_free(int);
+void            buffer_cond_init();
+void            cond_produce(int);
+int             cond_consume();
 
 // semaphore.c
 void            sem_init(semaphore*, int);

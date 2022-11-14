@@ -124,6 +124,7 @@ UPROGS=\
 	$U/_barriergrouptest\
 	$U/_barriertest\
 	$U/_cat\
+	$U/_condprodconstest\
 	$U/_echo\
 	$U/_find\
 	$U/_forksleep\

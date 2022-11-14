@@ -209,4 +209,26 @@ sys_barrier_free(void)
   barrier_free(id);
   return 0;
 }
+
+uint64
+sys_buffer_cond_init(void)
+{
+  buffer_cond_init();
+  return 0;
+}
+
+uint64
+sys_cond_produce(void)
+{
+  int prod;
+  if (argint(0, &prod) < 0) return -1;
+  cond_produce(prod);
+  return 0;
+}
+
+uint64
+sys_cond_consume(void)
+{
+  return cond_consume();
+}
 // ########################## Adulteration by UG@CSE IITK'24 ##########################

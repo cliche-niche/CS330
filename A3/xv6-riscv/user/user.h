@@ -56,4 +56,8 @@ void *memcpy(void *, const void *, uint);
 int barrier_alloc(void);
 void barrier(int, int, int);
 void barrier_free(int);
+
+void buffer_cond_init(void);
+void cond_produce(int);
+int cond_consume(void);
 // ########################## UG-Nation Strikes again ##########################

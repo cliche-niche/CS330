@@ -19,12 +19,12 @@ cond_wait(cond_t *cv, struct sleeplock *lock){
 
 void
 cond_broadcast (cond_t *cv){
-    wakeup((void*) cv);
+    wakeup((void *) cv);
 }
 
 void
 cond_signal (cond_t *cv){
-    wakeupone(&cv);
+    wakeupone((void *) cv);
 }
 
 // #################### UG IITK - 24 #################### //
