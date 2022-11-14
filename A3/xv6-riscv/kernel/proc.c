@@ -8,6 +8,7 @@
 #include "procstat.h"
 #include "sleeplock.h"
 #include "condvar.h"
+#include "semaphore.h"
 #include "barrier.h"
 #include "buffer.h"
 
@@ -58,12 +59,21 @@ struct barrier barriers[NUM_BARRIERS] = {0};  // La'barrieur arreiuy
 struct sleeplock barrier_lock;                // used when accessing the barrier array
 
 
-struct buffer buffers[NUM_BUFFERS] = {0};
-struct sleeplock bufferinsert_lock;
-struct sleeplock bufferdelete_lock;
+struct cond_buffer cond_buffers[NUM_COND_BUFFERS] = {0};
+struct sleeplock cond_bufferinsert_lock;
+struct sleeplock cond_bufferdelete_lock;
 
-int buffer_tail = 0;
-int buffer_head = 0;
+int cond_buffer_tail = 0;
+int cond_buffer_head = 0;
+
+sem_buffer sem_buffers[NUM_SEM_BUFFERS] = {0};
+struct semaphore bin_sem_con;
+struct semaphore bin_sem_pro;
+struct semaphore sem_full;
+struct semaphore sem_empty;
+
+int sem_buffer_tail = 0;
+int sem_buffer_head = 0;
 
 struct sleeplock releasecondsleep_lock;       // used to prevent deadlocks when multiple processes execute condsleep
 struct sleeplock print_lock;                  // used to print statements without jumbling up the output
@@ -1368,18 +1378,18 @@ barrier_free(int barrier_id)
 
 // ################################# Barrier Code #################################
 
-// ################################# Buffer Code #################################
+// ################################# Conditional Buffer Code #################################
 void
 buffer_cond_init() 
 {
-  buffer_tail = 0;
-  buffer_head = 0;
-  initsleeplock(&bufferinsert_lock, "UG@CSE IITK'24 - Buffer Insert");
-  initsleeplock(&bufferdelete_lock, "UG@CSE IITK'24 - Buffer Delete");
-  for(int i = 0; i < NUM_BUFFERS; i++) {
-    initsleeplock(&buffers[i].lk, "UG@CSE IITK'24 - Buffer Lock");
-    buffers[i].x = -1;
-    buffers[i].full = 0;
+  cond_buffer_tail = 0;
+  cond_buffer_head = 0;
+  initsleeplock(&cond_bufferinsert_lock, "UG@CSE IITK'24 - Buffer Insert");
+  initsleeplock(&cond_bufferdelete_lock, "UG@CSE IITK'24 - Buffer Delete");
+  for(int i = 0; i < NUM_COND_BUFFERS; i++) {
+    initsleeplock(&cond_buffers[i].lk, "UG@CSE IITK'24 - Buffer Lock");
+    cond_buffers[i].x = -1;
+    cond_buffers[i].full = 0;
   }
 }
 
@@ -1388,17 +1398,17 @@ cond_produce(int prod)
 {
   int idx = 0;
 
-  acquiresleep(&bufferinsert_lock); // obtain the index where production is to be done
-  idx = buffer_tail;
-  buffer_tail = (buffer_tail + 1 == NUM_BUFFERS ? 0 : buffer_tail + 1);
-  releasesleep(&bufferinsert_lock);
+  acquiresleep(&cond_bufferinsert_lock); // obtain the index where production is to be done
+  idx = cond_buffer_tail;
+  cond_buffer_tail = (cond_buffer_tail + 1 == NUM_COND_BUFFERS ? 0 : cond_buffer_tail + 1);
+  releasesleep(&cond_bufferinsert_lock);
 
-  acquiresleep(&buffers[idx].lk);
-  while(buffers[idx].full) cond_wait(&buffers[idx].deleted, &buffers[idx].lk);
-  buffers[idx].x = prod;
-  buffers[idx].full = 1;
-  cond_signal(&buffers[idx].inserted);
-  releasesleep(&buffers[idx].lk);
+  acquiresleep(&cond_buffers[idx].lk);
+  while(cond_buffers[idx].full) cond_wait(&cond_buffers[idx].deleted, &cond_buffers[idx].lk);
+  cond_buffers[idx].x = prod;
+  cond_buffers[idx].full = 1;
+  cond_signal(&cond_buffers[idx].inserted);
+  releasesleep(&cond_buffers[idx].lk);
 }
 
 int
@@ -1407,17 +1417,17 @@ cond_consume()
   int idx = 0;
   int val = 0;
 
-  acquiresleep(&bufferdelete_lock);
-  idx = buffer_head;
-  buffer_head = (buffer_head + 1 == NUM_BUFFERS ? 0 : buffer_head + 1);
-  releasesleep(&bufferdelete_lock);
+  acquiresleep(&cond_bufferdelete_lock);
+  idx = cond_buffer_head;
+  cond_buffer_head = (cond_buffer_head + 1 == NUM_COND_BUFFERS ? 0 : cond_buffer_head + 1);
+  releasesleep(&cond_bufferdelete_lock);
 
-  acquiresleep(&buffers[idx].lk);
-  while(!buffers[idx].full) cond_wait(&buffers[idx].inserted, &buffers[idx].lk);
-  val = buffers[idx].x;
-  buffers[idx].full = 0;
-  cond_signal(&buffers[idx].deleted);
-  releasesleep(&buffers[idx].lk);
+  acquiresleep(&cond_buffers[idx].lk);
+  while(!cond_buffers[idx].full) cond_wait(&cond_buffers[idx].inserted, &cond_buffers[idx].lk);
+  val = cond_buffers[idx].x;
+  cond_buffers[idx].full = 0;
+  cond_signal(&cond_buffers[idx].deleted);
+  releasesleep(&cond_buffers[idx].lk);
 
   acquiresleep(&print_lock);
   printf("%d ", val);
@@ -1425,7 +1435,50 @@ cond_consume()
 
   return val;
 }
-// ################################# Buffer Code #################################
+// ################################# Conditional Buffer Code #################################
 
+// ################################# Semaphore Buffer Code #################################
+void
+buffer_sem_init(void)
+{
+  sem_buffer_head = 0;
+  sem_buffer_tail = 0;
+  sem_init(&bin_sem_pro, 1);
+  sem_init(&bin_sem_con, 1);
+  sem_init(&sem_full, 0);
+  sem_init(&sem_empty, NUM_SEM_BUFFERS);
+  for (int i = 0; i < NUM_SEM_BUFFERS; i++) sem_buffers[i] = -1;
+}
+
+void
+sem_produce(int prod)
+{
+  sem_wait(&sem_empty);
+  sem_wait(&bin_sem_pro);
+  sem_buffers[sem_buffer_head] = prod;
+  sem_buffer_head = (sem_buffer_head + 1 == NUM_SEM_BUFFERS ? 0 : sem_buffer_head + 1);
+  sem_post(&bin_sem_pro);
+  sem_post(&sem_full);
+}
+
+int
+sem_consume(void)
+{
+  int val;
+  sem_wait(&sem_full);
+  sem_wait(&bin_sem_con);
+  val = sem_buffers[sem_buffer_tail];
+  sem_buffers[sem_buffer_tail] = -1;
+  sem_buffer_tail = (sem_buffer_tail + 1 == NUM_SEM_BUFFERS ? 0 : sem_buffer_tail + 1);
+  sem_post(&bin_sem_con);
+  sem_post(&sem_empty);
+
+  acquiresleep(&print_lock);
+  printf("%d ", val);
+  releasesleep(&print_lock);
+
+  return val;
+}
+// ################################# Semaphore Buffer Code #################################
 
 // ############################################## UG - IITK 24 ##############################################

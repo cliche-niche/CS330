@@ -30,9 +30,9 @@ OBJS = \
   $K/plic.o \
   $K/virtio_disk.o \
   $K/condvar.o \
+  $K/semaphore.o \
   #implemented by UG IITK 24#
- 
-  #UG IITK 24#
+
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -121,10 +121,7 @@ mkfs/mkfs: mkfs/mkfs.c $K/fs.h $K/param.h
 ####################################### ADD BACK TEST FILES BRO #######################################
 # Specifically, barriergrouptest, barriertest, condprodconstest, semprodconstest #
 UPROGS=\
-	$U/_barriergrouptest\
-	$U/_barriertest\
 	$U/_cat\
-	$U/_condprodconstest\
 	$U/_echo\
 	$U/_find\
 	$U/_forksleep\
@@ -161,6 +158,10 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_barriergrouptest\
+	$U/_barriertest\
+	$U/_condprodconstest\
+	$U/_semprodconstest\
 
 JOBFILES=\
 	$U/batch.txt\

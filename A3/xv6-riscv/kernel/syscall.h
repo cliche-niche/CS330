@@ -39,4 +39,8 @@
 #define SYS_buffer_cond_init 34
 #define SYS_cond_produce 35
 #define SYS_cond_consume 36
+
+#define SYS_buffer_sem_init 37
+#define SYS_sem_produce 38
+#define SYS_sem_consume 39
 // ########################## Adulteration by UG@CSE IITK'24 ##########################

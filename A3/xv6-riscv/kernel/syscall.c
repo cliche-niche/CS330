@@ -123,6 +123,10 @@ extern uint64 sys_barrier_free(void);
 extern uint64 sys_buffer_cond_init(void);
 extern uint64 sys_cond_produce(void);
 extern uint64 sys_cond_consume(void);
+
+extern uint64 sys_buffer_sem_init(void);
+extern uint64 sys_sem_produce(void);
+extern uint64 sys_sem_consume(void);
 // ########################## Adulteration by UG@CSE IITK'24 ##########################
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -165,6 +169,10 @@ static uint64 (*syscalls[])(void) = {
 [SYS_buffer_cond_init]  sys_buffer_cond_init,
 [SYS_cond_produce]      sys_cond_produce,
 [SYS_cond_consume]      sys_cond_consume,
+
+[SYS_buffer_sem_init]   sys_buffer_sem_init,
+[SYS_sem_produce]       sys_sem_produce,
+[SYS_sem_consume]       sys_sem_consume,
 // ########################## Adulteration by UG@CSE IITK'24 ##########################
 };
 

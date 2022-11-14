@@ -55,4 +55,8 @@ entry("barrier_free");
 entry("buffer_cond_init");
 entry("cond_produce");
 entry("cond_consume");
+
+entry("buffer_sem_init");
+entry("sem_produce");
+entry("sem_consume");
 # ////////////////////////// Adulteration by UG@CSE IITK'24 //////////////////////////

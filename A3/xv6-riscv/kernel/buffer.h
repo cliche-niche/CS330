@@ -1,5 +1,5 @@
 // ########################### implementation by UG - IITK 24 ########################### //
-struct buffer{
+struct cond_buffer{
     int x;
     int full;
     struct sleeplock lk;
@@ -7,4 +7,5 @@ struct buffer{
     cond_t deleted;
 };
 
+typedef int sem_buffer;
 // ########################### UG IITK - 24 
