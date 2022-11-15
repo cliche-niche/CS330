@@ -8,4 +8,8 @@ struct cond_buffer{
 };
 
 typedef int sem_buffer;
+
+#define NUM_COND_BUFFERS 20
+#define NUM_SEM_BUFFERS 20
+
 // ########################### UG IITK - 24 

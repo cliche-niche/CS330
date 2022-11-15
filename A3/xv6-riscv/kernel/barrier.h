@@ -6,4 +6,6 @@ struct barrier{
     int pid;
 };
 
+#define NUM_BARRIERS 10
+
 //UG IITK - 24 

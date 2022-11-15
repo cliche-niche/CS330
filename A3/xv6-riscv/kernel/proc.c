@@ -55,9 +55,9 @@ extern char trampoline[]; // trampoline.S
 struct spinlock wait_lock;
 
 // ####################### Implemented by UG IITK'24 #######################
-struct barrier barriers[NUM_BARRIERS] = {0};  // La'barrieur arreiuy
-struct sleeplock barrier_lock;                // used when accessing the barrier array
 
+struct barrier barriers[NUM_BARRIERS];  // La'barrieur arreiuy
+struct sleeplock barrier_lock;                // used when accessing the barrier array
 
 struct cond_buffer cond_buffers[NUM_COND_BUFFERS] = {0};
 struct sleeplock cond_bufferinsert_lock;

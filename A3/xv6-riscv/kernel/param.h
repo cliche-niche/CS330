@@ -20,12 +20,3 @@
 #define SCHED_PARAM_SJF_A_NUMER 1
 #define SCHED_PARAM_SJF_A_DENOM 2
 #define SCHED_PARAM_CPU_USAGE 200
-
-
-// ######################### UG Nation shall rise again #########################
-
-#define NUM_BARRIERS 10
-#define NUM_COND_BUFFERS 20
-#define NUM_SEM_BUFFERS 20
-
-// ######################### The UG Nation rises-revisisted pt. 2 #########################
